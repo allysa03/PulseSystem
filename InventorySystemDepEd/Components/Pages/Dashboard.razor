@@ -1,0 +1,309 @@
+﻿@page "/Dashboard"
+@layout MainLayout
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<PageTitle>Dashboard  @SessionData.CurrentUserId</PageTitle>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        if (!SessionData.IsLoggedIn)
+        {
+            Navigation.NavigateTo("/", true);
+            return;
+        }
+
+        await LoadNotifications();
+    }
+}
+
+@if (SessionData.IsLoggedIn)
+{
+    <div class="p-3 md:p-5 w-full bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen fade-in"
+         @onclick="CloseNotifications">
+
+        <!-- HEADER -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <p class="text-gray-600 text-sm">
+                Welcome back!
+                <a href="/profile" class="text-blue-600 font-semibold no-underline">
+                    @SessionData.UserFullName
+                    @* @(string.IsNullOrEmpty(SessionData.UserFullName) ? "User" : SessionData.UserFullName.Split(' ')[0]) *@
+                 </a>
+                here's what's happening today.
+            </p>
+
+            <div class="flex items-center gap-2">
+
+                <!-- NOTIFICATIONS -->
+                <div class="relative" @onclick:stopPropagation>
+                    <button @onclick="ToggleNotifications"
+                            class="relative inline-flex items-center justify-center w-10 h-10 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md hover:bg-blue-50 transition-all duration-200 ease-out group">
+                        <span class="text-xl">🔔</span>
+                        @if (UnreadCount > 0)
+                        {
+                            <span class="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-red-600 text-white text-[10px] px-2 py-1 rounded-full font-bold shadow-md animate-pulse">
+                                @UnreadCount
+                            </span>
+                        }
+                    </button>
+
+                    @if (showNotifications)
+                    {
+                        <div class="absolute right-0 mt-3 w-96 bg-white rounded-xl shadow-2xl max-h-96 overflow-y-auto z-50 fade-in notification-dropdown border border-gray-100" @onclick:stopPropagation>
+
+                        <div class="p-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 flex justify-between items-center">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-semibold text-gray-800">Notifications</span>
+                                    @if (UnreadCount > 0)
+                                    {
+                                        <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">@UnreadCount new</span>
+                                    }
+                                </div>
+                                <button @onclick="MarkAllAsRead"
+                                        class="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline transition-colors">
+                                    Mark all read
+                                </button>
+                            </div>
+
+                            @foreach (var a in DisplayedActivities)
+                            {
+                                <div class="p-3 flex items-center gap-3 cursor-pointer notification-item"
+                                     @onclick="async () => await OpenNotificationDetails(a)">
+
+                                    <div class="relative flex items-center justify-center w-5 h-5 rounded-full @(a.IsRead ? "bg-gray-300" : "bg-blue-500") text-white font-bold">
+                                        @if (a.Type == "TRANSFER")
+                                        {
+                                            <span class="text-sm">⇄</span>
+                                        }
+                                    </div>
+
+                                    <div class="flex flex-col flex-1 text-xs text-gray-700">
+                                        <span class="font-semibold">@a.Title</span>
+                                        <span class="text-gray-400">@GetNotificationTimeAgo(a.CreatedAt)</span>
+                                    </div>
+                                </div>
+                            }
+
+                            @if (!recentActivities.Any())
+                            {
+                                <div class="p-3 text-center text-gray-400 text-xs">
+                                    No notifications
+                                </div>
+                            }
+
+                            @if (recentActivities.Count > 5)
+                            {
+                                <div class="p-3 border-t border-gray-100 bg-gray-50 text-center">
+                                    <button @onclick="ToggleShowAllNotifications"
+                                            class="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline transition-colors">
+                                        @(showAllNotifications ? "Show less" : "View all notifications")
+                                    </button>
+                                </div>
+                            }
+
+                    </div>
+                    }
+                    </div >
+                </div>
+        </div>
+
+    </div>
+
+    <!-- NOTIFICATION DETAILS -->
+    @if (selectedNotification != null)
+    {
+         <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+             @onclick="CloseNotificationDetails">
+
+            <div class="bg-white rounded-lg shadow-lg w-96 p-4"
+                 @onclick:stopPropagation>
+
+                <h3 class="font-bold text-sm mb-2">@selectedNotification.Title</h3>
+
+                <p class="text-gray-600 text-xs mb-4">
+                    @selectedNotification.CreatedAt.ToString("f")
+                </p>
+
+                <p class="text-gray-700">
+                    @((MarkupString)selectedNotification.Message)
+                </p>
+
+                <div class="mt-4 flex justify-end gap-2">
+
+                    @if (selectedNotification.Type == "TRANSFER" && selectedNotification.Action == "Pending")
+                    {
+                        @* <button class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
+                                @onclick='() => TransferAction("Approved")'>
+                            Approve
+                        </button>
+                        <button class= "px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                                @onclick='() => TransferAction("Rejected" , "Please put here the reason for the Rejection")'
+                                >
+                            Reject
+                        </button> *@
+                    }else if (selectedNotification.Type == "TRANSFER" && selectedNotification.Action == "Approved")
+                    {
+                        <span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold
+                            bg-green-100 text-green-700 rounded-full">
+                            ✔ Approved
+                        </span>
+                    }
+                    else if (selectedNotification.Type == "TRANSFER" && selectedNotification.Action == "Rejected")
+                    {
+                        <span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold
+                            bg-red-100 text-red-700 rounded-full">
+                            ✖ Rejected
+                        </span>
+                    }
+
+
+                    <button class="px-3 py-1 bg-gray-400 text-white rounded hover:bg-gray-500"
+                            @onclick="CloseNotificationDetails">
+                        Close
+                    </button>
+
+                </div>
+
+            </div>
+        </div>
+    }
+}
+
+@code {
+    #nullable enable
+
+    private bool showNotifications = false;
+    private bool showAllNotifications = false;
+
+    private List<NotificationDto> recentActivities = new();
+    private NotificationDto? selectedNotification;
+
+    private int UnreadCount => recentActivities.Count(n => !n.IsRead);
+
+    private List<NotificationDto> DisplayedActivities =>
+     showAllNotifications ? recentActivities : recentActivities.Take(5).ToList();
+
+    private async Task LoadNotifications()
+    {
+        try
+        {
+            recentActivities =
+                await Http.GetFromJsonAsync<List<NotificationDto>>(
+                    $"api/notifications/{SessionData.CurrentUserId}") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Notification load error: {ex.Message}");
+            recentActivities = new();
+        }
+    }
+
+    private void ToggleShowAllNotifications()
+    {
+        showAllNotifications = !showAllNotifications;
+    }
+
+    private void ToggleNotifications()
+    {
+        showNotifications = !showNotifications;
+    }
+
+    private void CloseNotifications()
+    {
+        showNotifications = false;
+    }
+
+
+    private async Task OpenNotificationDetails(NotificationDto notification)
+    {
+        selectedNotification = notification;
+
+        if (!notification.IsRead)
+        {
+            await Http.PutAsync($"api/notifications/read/{notification.NotificationId}", null);
+
+            notification.IsRead = true;
+            StateHasChanged();
+        }
+    }
+
+    private void CloseNotificationDetails()
+    {
+        selectedNotification = null;
+    }
+
+
+    private async Task MarkAllAsRead()
+    {
+        await Http.PutAsync(
+            $"api/notifications/read-all/{SessionData.CurrentUserId}",
+            null);
+
+        foreach (var n in recentActivities)
+            n.IsRead = true;
+
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _ = Task.Run(async () =>
+            {
+                while (true)
+                {
+                    await Task.Delay(15000);
+                    await InvokeAsync(LoadNotifications);
+                    StateHasChanged();
+                }
+            });
+        }
+    }
+
+
+    // 🔹 NEW APPROVE TRANSFER METHOD
+    // private async Task TransferAction(string? action = "", string? remark = "")
+    // {
+    //     if (selectedNotification == null)
+    //         return;
+
+    //     await OfficeService.TransferActionAsync(selectedNotification.PersonnelId, action, remark);
+
+    //     if (!selectedNotification.IsRead)
+    //     {
+    //         await NotificationService.MarkAsReadAsync(selectedNotification.NotificationId);
+    //         selectedNotification.IsRead = true;
+    //         selectedNotification.Action = action; Update the action to reflect approval
+    //         StateHasChanged();
+    //     }
+
+    //     selectedNotification = null;
+
+    //     recentActivities = await NotificationService
+    //         .GetNotificationsByUserIdAsync(SessionData.CurrentUserId);
+
+    //     StateHasChanged();
+    // }
+
+    private string GetNotificationTimeAgo(DateTime createdAt)
+    {
+        var ts = DateTime.UtcNow - createdAt.ToUniversalTime();
+
+        if (ts.TotalSeconds < 60)
+            return $"{(int)ts.TotalSeconds}s ago";
+
+        if (ts.TotalMinutes < 60)
+            return $"{(int)ts.TotalMinutes}m ago";
+
+        if (ts.TotalHours < 24)
+            return $"{(int)ts.TotalHours}h ago";
+
+        if (ts.TotalDays < 7)
+            return $"{(int)ts.TotalDays}d ago";
+
+        return createdAt.ToString("MMM dd");
+    }
+}

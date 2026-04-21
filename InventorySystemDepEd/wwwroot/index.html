@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>InventorySystemDepEd</title>
+    <base href="/" />
+    <link rel="stylesheet" href="lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="InventorySystemDepEd.styles.css" />
+    <link href="css/tailwindapp.css" rel="stylesheet" />
+    <link rel="icon" href="data:,">
+
+
+    <!-- use for profile icons-->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" />
+
+    <style>
+        /* Fullscreen overlay */
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            font-family: Arial, sans-serif;
+        }
+
+        /* Spinner */
+        .spinner {
+            width: 3rem;
+            height: 3rem;
+            border: 4px solid #e5e7eb;
+            border-top-color: rgb(5, 39, 103);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Loading percentage text */
+        .loading-text {
+            font-weight: 700;
+            color: rgb(5, 39, 103);
+            font-size: 1.2rem;
+        }
+
+            /* Slightly thinner at 100% */
+            .loading-text.full {
+                font-weight: 500; /* thinner when full */
+                color: rgb(5, 39, 103);
+            }
+    </style>
+</head>
+
+<body>
+
+    <!--<div class="status-bar-safe-area"></div>-->
+
+    <!-- Fullscreen Loading Overlay with Spinner and Percentage -->
+    <!--<div id="loading-overlay">
+        <div class="spinner"></div>-->
+        <!--<div class="loading-text" id="loading-percentage">0%</div>-->
+        <!--<div class="loading-text" id="loading-percentage">0%</div>
+    </div>-->
+
+    <div id="app"></div>
+
+    <div id="blazor-error-ui" data-nosnippet>
+        An unhandled error has occurred.
+        <a href="." class="reload">Reload</a>
+        <span class="dismiss">🗙</span>
+    </div>
+
+    <script src="_framework/blazor.webview.js" autostart="false"></script>
+    <script src="app.js"></script>
+
+    <script>
+        // Simulate loading percentage
+        //document.addEventListener('DOMContentLoaded', () => {
+        //    let percent = 0;
+        //    const percentageEl = document.getElementById('loading-percentage');
+        //    const overlay = document.getElementById('loading-overlay');
+
+        //    const interval = setInterval(() => {
+        //        percent += Math.floor(Math.random() * 5) + 1; // increment 1-5%
+        //        if (percent > 100) percent = 100;
+
+        //        // Apply thinner style if 100%
+        //document.addEventListener('DOMContentLoaded', () => {
+        //    let percent = 0;
+        //    const percentageEl = document.getElementById('loading-percentage');
+        //    const overlay = document.getElementById('loading-overlay');
+
+        //    const interval = setInterval(() => {
+        //        percent += Math.floor(Math.random() * 5) + 1; // increment 1-5%
+        //        if (percent > 100) percent = 100;
+
+        //        // Apply thinner style if 100%
+        //        if (percent === 100) {
+        //            percentageEl.classList.add('full');
+        //        }
+
+        //        percentageEl.textContent = percent + '%';
+
+        //        if (percent >= 100) {
+        //            clearInterval(interval);
+
+        //            // Small delay so user sees 100%
+        //            setTimeout(() => {
+        //                overlay.style.display = 'none';
+
+        //                // Start Blazor
+        //                Blazor.start().then(() => {
+        //                    // Navigate to root "/" if not already there
+        //                    if (window.location.pathname !== '/') {
+        //                        window.location.href = '/';
+        //                    }
+        //                });
+        //            }, 800); // 0.8s delay after 100%
+        //        }
+        //    }, 100); // update every 0.1s
+        //});
+        //        if (percent === 100) {
+        //            percentageEl.classList.add('full');
+        //        }
+
+        //        percentageEl.textContent = percent + '%';
+
+        //        if (percent >= 100) {
+        //            clearInterval(interval);
+
+        //            // Small delay so user sees 100%
+        //            setTimeout(() => {
+        //                overlay.style.display = 'none';
+
+        //                // Start Blazor
+        //                Blazor.start().then(() => {
+        //                    // Navigate to root "/" if not already there
+        //                    if (window.location.pathname !== '/') {
+        //                        window.location.href = '/';
+        //                    }
+        //                });
+        //            }, 800); // 0.8s delay after 100%
+        //        }
+        //    }, 100); // update every 0.1s
+        //});
+        window.triggerClick = (element) => {
+            element.click();
+        };
+    </script>
+
+</body>
+</html>

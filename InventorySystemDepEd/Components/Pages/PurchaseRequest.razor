@@ -1,0 +1,132 @@
+﻿@page "/procurement/purchase-requests"
+@layout MainLayout
+
+<PageTitle>Purchase Requests</PageTitle>
+
+<div class="p-4 bg-gray-50 min-h-screen max-w-[1920px] mx-auto">
+
+    <!-- Page header -->
+    <div class="mb-4 border-b-2 border-gray-200 pb-3 flex justify-between items-center">
+        <div>
+            <h1 class="text-xl font-bold text-[rgb(5,39,103)] tracking-tight mb-0.5">
+                Purchase Requests Management
+            </h1>
+            <p class="text-xs text-gray-500">
+                Manage and track procurement purchase requests
+            </p>
+        </div>
+
+        <button class="px-3 py-2 bg-[rgb(5,39,103)] text-white rounded text-xs font-semibold hover:bg-[rgb(3,30,80)] transition-all duration-300 flex items-center gap-1.5 shadow-md hover:shadow-lg">
+            Create Purchase Request
+        </button>
+    </div>
+
+    <!-- Purchase Requests Table -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
+
+        <div class="overflow-x-auto">
+            <table class="w-full border-collapse text-xs">
+                <thead>
+                    <tr class="bg-gradient-to-r from-[rgb(5,39,103)] to-[rgb(3,30,80)]">
+
+                        <th class="px-3 py-2.5 text-left text-white text-[10px] uppercase">
+                            PR Number
+                        </th>
+
+                        <th class="px-3 py-2.5 text-left text-white text-[10px] uppercase">
+                            Requesting Office
+                        </th>
+
+                        <th class="px-3 py-2.5 text-left text-white text-[10px] uppercase">
+                            Purpose
+                        </th>
+
+                        <th class="px-3 py-2.5 text-left text-white text-[10px] uppercase">
+                            Requested By
+                        </th>
+
+                        <th class="px-3 py-2.5 text-center text-white text-[10px] uppercase">
+                            Date Requested
+                        </th>
+
+                        <th class="px-3 py-2.5 text-center text-white text-[10px] uppercase">
+                            Status
+                        </th>
+
+                        <th class="px-3 py-2.5 text-center text-white text-[10px] uppercase">
+                            Actions
+                        </th>
+
+                    </tr>
+                </thead>
+
+                <tbody class="divide-y divide-gray-100">
+
+                    <!-- SAMPLE ROW -->
+                    <tr class="hover:bg-blue-50 transition-colors cursor-pointer">
+
+                        <td class="px-3 py-2.5">
+                            <strong>PR-2026-001</strong>
+                        </td>
+
+                        <td class="px-3 py-2.5">
+                            Supply Office
+                        </td>
+
+                        <td class="px-3 py-2.5">
+                            Purchase of office supplies
+                        </td>
+
+                        <td class="px-3 py-2.5">
+                            Juan Dela Cruz
+                        </td>
+
+                        <td class="px-3 py-2.5 text-center">
+                            Apr 07, 2026
+                        </td>
+
+                        <td class="px-3 py-2.5 text-center">
+
+                            <span class="inline-flex items-center px-3 py-1 rounded-lg text-[10px] font-semibold bg-yellow-100 text-yellow-800 border border-yellow-200">
+                                For Approval
+                            </span>
+
+                        </td>
+
+                        <td class="px-3 py-2.5 text-center">
+                            <div class="flex items-center justify-center gap-1">
+
+                                <button class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-[10px]">
+                                    Edit
+                                </button>
+
+                                <button class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-[10px]">
+                                    Delete
+                                </button>
+
+                            </div>
+                        </td>
+
+                    </tr>
+
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Table Footer -->
+        <div class="px-4 py-2 bg-gray-50 border-t border-gray-200 flex items-center justify-between text-xs text-gray-600">
+
+            <div class="flex items-center gap-1">
+                <span>Total Purchase Requests:</span>
+                <strong class="text-[rgb(5,39,103)]">1</strong>
+            </div>
+
+            <div class="text-[10px] text-gray-500">
+                Procurement System
+            </div>
+
+        </div>
+
+    </div>
+
+</div>

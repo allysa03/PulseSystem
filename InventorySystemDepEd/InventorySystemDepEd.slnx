@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="../InventorySystemDepEd.Api/InventorySystemDepEd.Api.csproj" Id="8e5eee0e-37b7-43db-a8e6-5348839d91e8" />
+  <Project Path="../InventorySystemDepEd.Shared/InventorySystemDepEd.Shared.csproj" Id="9ec4c4f9-96b0-40d2-9541-d103a7c1dfe4" />
+  <Project Path="InventorySystemDepEd.csproj">
+    <Deploy Solution="Debug|*" />
+  </Project>
+</Solution>

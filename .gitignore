@@ -1,0 +1,74 @@
+# =========================
+# .NET
+# =========================
+**/bin/
+**/obj/
+**/out/
+**/publish/
+
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build outputs
+*.dll
+*.exe
+*.pdb
+
+# NuGet
+*.nupkg
+packages/
+**/project.assets.json
+**/project.lock.json
+
+# Test results
+TestResults/
+coverage/
+
+# =========================
+# Node.js
+# =========================
+node_modules/
+**/node_modules/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+dist/
+build/
+.next/
+out/
+
+.env
+.env.*
+!.env.example
+
+# =========================
+# Logs
+# =========================
+*.log
+Logs/
+logs/
+
+# =========================
+# IDEs
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Optional lock files (keep usually YES)
+# =========================
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml

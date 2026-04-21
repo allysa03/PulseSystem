@@ -1,0 +1,221 @@
+@* Modal for Terms of Use *@
+
+<style>
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 8px;
+        max-width: 600px;
+        width: 85%;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        animation: slideUp 0.3s ease;
+    }
+
+    .modal-header {
+        padding: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: rgb(5, 39, 103);
+        margin: 0;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        cursor: pointer;
+        color: #9ca3af;
+        padding: 0;
+        width: 1.5rem;
+        height: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+
+    .modal-close:hover {
+        color: rgb(5, 39, 103);
+        background-color: #f3f4f6;
+        border-radius: 4px;
+    }
+
+    .modal-body {
+        padding: 1rem;
+        font-size: 0.75rem;
+        color: #4b5563;
+        line-height: 1.5;
+    }
+
+    .modal-body h3 {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: rgb(5, 39, 103);
+        margin: 0.75rem 0 0.4rem 0;
+    }
+
+    .modal-body h3:first-child {
+        margin-top: 0;
+    }
+
+    .modal-body p {
+        margin: 0.4rem 0;
+    }
+
+    .modal-body ul {
+        margin: 0.4rem 0 0.4rem 1rem;
+        padding-left: 0;
+    }
+
+    .modal-body li {
+        margin: 0.25rem 0;
+    }
+
+    .modal-footer {
+        padding: 0.75rem 1rem;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+    }
+
+    .modal-btn {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        border: none;
+        font-size: 0.7rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .modal-btn-primary {
+        background: rgb(5, 39, 103);
+        color: white;
+    }
+
+    .modal-btn-primary:hover {
+        background: rgb(3, 30, 80);
+        box-shadow: 0 4px 12px rgba(5, 39, 103, 0.25);
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    @@keyframes slideUp {
+        from {
+            transform: translateY(20px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+</style>
+
+@if (IsOpen)
+{
+    <div class="modal-overlay" @onclick="OnOverlayClick">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h2 class="modal-title">Terms of Use</h2>
+                <button class="modal-close" @onclick="Close" aria-label="Close modal">
+                    ✕
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <h3>Agreement</h3>
+                <p>
+                    By using the DepEd ICT Equipment Inventory System, you agree to follow these terms. If you do not agree, please do not use this system.
+                </p>
+
+                <h3>How You Can Use This System</h3>
+                <p>You can use this system for:</p>
+                <ul>
+                    <li>Managing and tracking ICT equipment</li>
+                    <li>Recording equipment information and status</li>
+                    <li>Generating inventory reports</li>
+                </ul>
+
+                <h3>What You Cannot Do</h3>
+                <ul>
+                    <li>Share your login credentials with others</li>
+                    <li>Copy or download system data for unauthorized use</li>
+                    <li>Attempt to hack or damage the system</li>
+                    <li>Use the system for purposes other than inventory management</li>
+                </ul>
+
+                <h3>System Provided As-Is</h3>
+                <p>
+                    DepEd provides this system "as-is" without guarantees. We do not guarantee the system will always work perfectly or that all information is 100% accurate.
+                </p>
+
+                <h3>Your Responsibility</h3>
+                <p>
+                    You are responsible for using the system properly and protecting your login information. DepEd is not liable for data loss or system issues caused by misuse.
+                </p>
+
+                <h3>Changes to These Terms</h3>
+                <p>
+                    DepEd may change these terms at any time. Continuing to use the system means you accept the new terms.
+                </p>
+            </div>
+
+            <div class="modal-footer">
+                <button class="modal-btn modal-btn-primary" @onclick="Close">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool IsOpen { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private async Task Close()
+    {
+        await OnClose.InvokeAsync();
+    }
+
+    private async Task OnOverlayClick()
+    {
+        await Close();
+    }
+}

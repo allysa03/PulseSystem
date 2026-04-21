@@ -1,0 +1,475 @@
+@page "/register"
+@layout LoginLayout
+@inject NavigationManager Navigation
+@inject HttpClient Http
+@using InventorySystemDepEd.Components.Modals
+@using System.Security.Cryptography;
+@using System.Text;
+
+<style>
+    /* --- Register Card Container --- */
+    .register-card {
+        width: 100%;
+        max-width: 480px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 14px;
+        padding: 2.5rem 2rem;
+        box-shadow: 0 20px 60px rgba(5, 39, 103, 0.12);
+        animation: cardFadeIn 0.6s ease-out;
+    }
+
+    @@keyframes cardFadeIn {
+        from { 
+            opacity: 0; 
+            transform: translateY(20px) scale(0.98);
+        }
+        to { 
+            opacity: 1; 
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    /* --- Reuse the same styles as your login page --- */
+    .auth-label { font-size: 0.6rem; letter-spacing: 1.2px; color: #9ca3af; font-weight: 600; text-transform: uppercase; margin: 0 0 0.6rem; text-align: center; }
+    .login-title { font-size: 1.5rem; font-weight: 700; color: rgb(5, 39, 103); margin: 0 0 0.3rem; text-align: center; }
+    .login-subtitle { color: #9ca3af; font-size: 0.75rem; margin: 0 0 1rem; text-align: center; }
+    .form-group { margin-bottom: 1rem; }
+    .input-label { font-size: 0.65rem; letter-spacing: 0.6px; color: #2c3e50; font-weight: 700; text-transform: uppercase; margin-bottom: 0.4rem; display: block; }
+    .input-wrapper { position: relative; display: flex; align-items: center; }
+    .input-icon { position: absolute; left: 0.75rem; color: rgb(5, 39, 103); z-index: 1; width: 1rem; height: 1rem; }
+    .password-toggle { position: absolute; right: 0.75rem; background: none; border: none; cursor: pointer; color: rgb(5, 39, 103); padding: 0; z-index: 2; transition: all 0.2s ease; width: 1rem; height: 1rem; }
+    .password-toggle:hover:not(:disabled) { opacity: 0.7; }
+    .form-group input { width: 100%; padding: 0.65rem 2.25rem; border: 1.5px solid #e5e7eb; border-radius: 8px; font-size: 0.8rem; transition: all 0.3s ease; box-sizing: border-box; background: #f9fafb; }
+    .form-group input:focus { outline: none; border-color: rgb(5, 39, 103); box-shadow: 0 0 0 3px rgba(5, 39, 103, 0.07); background: white; }
+    .form-footer { display: flex; justify-content: space-between; align-items: center; margin: 0.75rem 0 1rem; font-size: 0.7rem; }
+
+    /* Checkbox - Updated Design */
+    .checkbox-group {
+        margin: 1rem 0;
+        padding: 0.75rem 0;
+    }
+
+    .checkbox-wrapper {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+        .checkbox-wrapper input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            margin-top: 2px;
+            cursor: pointer;
+            accent-color: rgb(5, 39, 103);
+            flex-shrink: 0;
+        }
+
+            .checkbox-wrapper input[type="checkbox"]:disabled {
+                cursor: not-allowed;
+            }
+
+    .checkbox-label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        line-height: 1.4;
+    }
+
+        .checkbox-label a {
+            color: rgb(5, 39, 103);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+            .checkbox-label a:hover {
+                text-decoration: underline;
+            }
+    /* ---- */
+
+    /* Generic alert (red) */
+    .alert {
+        background: #fee2e2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+        padding: 0.7rem 0.75rem;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+        font-size: 0.75rem;
+        border-left: 4px solid #dc2626;
+    }
+
+    /* Success message (light green) */
+    .success {
+        background: #d1fae5;        /* Light green background */
+        border: 1px solid #6ee7b7;  /* Slightly darker green border */
+        color: #065f46;              /* Dark green text */
+        padding: 0.7rem 0.75rem;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+        font-size: 0.75rem;
+        border-left: 4px solid #10b981; /* Solid green stripe on the left */
+    }
+    .login-btn { width: 100%; padding: 0.75rem; background: rgb(5, 39, 103); color: white; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; letter-spacing: 0.5px; }
+    .login-btn:hover:not(:disabled) { background: rgb(3, 30, 80); box-shadow: 0 8px 24px rgba(5, 39, 103, 0.25); }
+    .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .divider { text-align: center; margin: 1rem 0; color: #d1d5db; font-size: 0.7rem; }
+
+    /* Checkbox - Updated Design */
+    .checkbox-group {
+        margin: 1rem 0;
+        padding: 0.75rem 0;
+    }
+
+    .checkbox-wrapper {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+        .checkbox-wrapper input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            margin-top: 2px;
+            cursor: pointer;
+            accent-color: rgb(5, 39, 103);
+            flex-shrink: 0;
+        }
+
+            .checkbox-wrapper input[type="checkbox"]:disabled {
+                cursor: not-allowed;
+            }
+
+    .checkbox-label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        line-height: 1.4;
+    }
+
+        .checkbox-label a {
+            color: rgb(5, 39, 103);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+            .checkbox-label a:hover {
+                text-decoration: underline;
+            }
+    /* ---- */
+
+    /* Generic alert (red) */
+    .alert {
+        background: #fee2e2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+        padding: 0.7rem 0.75rem;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+        font-size: 0.75rem;
+        border-left: 4px solid #dc2626;
+    }
+
+    /* Success message (light green) */
+    .success {
+        background: #d1fae5;        /* Light green background */
+        border: 1px solid #6ee7b7;  /* Slightly darker green border */
+        color: #065f46;              /* Dark green text */
+        padding: 0.7rem 0.75rem;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+        font-size: 0.75rem;
+        border-left: 4px solid #10b981; /* Solid green stripe on the left */
+    }
+    .login-btn { width: 100%; padding: 0.75rem; background: rgb(5, 39, 103); color: white; border: none; border-radius: 6px; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: all 0.3s ease; letter-spacing: 0.5px; }
+    .login-btn:hover:not(:disabled) { background: rgb(3, 30, 80); box-shadow: 0 4px 12px rgba(5, 39, 103, 0.25); }
+    .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .divider { text-align: center; margin: 1rem 0; color: #d1d5db; font-size: 0.7rem; }
+    .signup-section { text-align: center; color: #6b7280; font-size: 0.75rem; }
+    .signup-link { color: rgb(5, 39, 103); text-decoration: none; font-weight: 700; transition: all 0.2s ease; }
+    .signup-link:hover { color: rgb(3, 30, 80); text-decoration: underline; }
+    .spinner { display: inline-block; width: 0.875rem; height: 0.875rem; border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top-color: white; animation: spin 0.8s linear infinite; }
+    @@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<div class="register-card">
+    <div class="auth-label">Create Account</div>
+    <h1 class="login-title">Register</h1>
+    <p class="login-subtitle">Fill in your details to sign up.</p>
+
+    @if (!string.IsNullOrEmpty(errorMessage) && resultMessage == "success")
+    {
+        <div class="success">@errorMessage</div>
+    }else if(!string.IsNullOrEmpty(errorMessage) && resultMessage == "failed"){
+        <div class="alert">@errorMessage</div>
+    }
+
+<form>
+
+    <!-- Email -->
+    <div class="form-group">
+        <label class="input-label" for="emailInput">Email Address</label>
+        <div class="input-wrapper">
+            <svg class="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" tabindex="-1">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <input id="emailInput"
+               type="email"
+               placeholder="you@example.com"
+               @bind="email"
+               disabled="@isLoading"
+               required
+               @ref="emailInputRef" />
+        </div>
+    </div>
+
+    <!-- Password -->
+    <div class="form-group">
+        <label class="input-label">Password</label>
+        <div class="input-wrapper">
+            <svg class="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" tabindex="-1">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <input type="@passwordInputType"
+                placeholder="••••••••"
+                value="@password"
+                @oninput="e => password = e.Value?.ToString()"
+                @onblur="ValidatePasswords" />
+            <button type="button" class="password-toggle" @onclick="TogglePasswordVisibility" disabled="@isLoading">
+                @if (showPassword)
+                {
+                    <!-- Eye Slash (Hide) -->
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" tabindex="-1">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
+                }
+                else
+                {
+                    <!-- Eye (Show) -->
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" tabindex="-1">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                }
+            </button>
+        </div>
+    </div>
+
+    <!-- Confirm Password -->
+    <div class="form-group">
+        <label class="input-label">Confirm Password</label>
+        <div class="input-wrapper">
+            <svg class="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" tabindex="-1">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+           <input type="@confirmPasswordInputType"
+               placeholder="••••••••"
+               value="@confirmPassword"
+               @oninput="e => confirmPassword = e.Value?.ToString()"
+               @onblur="ValidatePasswords"
+               disabled="@isLoading" />
+            <button type="button" class="password-toggle" @onclick="ToggleConfirmPasswordVisibility" disabled="@isLoading">
+                @if (showConfirmPassword)
+                {
+                    <!-- Eye Slash (Hide) -->
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" tabindex="-1">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
+                }
+                else
+                {
+                    <!-- Eye (Show) -->
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" tabindex="-1">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                }
+            </button>
+        </div>
+    </div>
+
+     <!-- Terms and Conditions -->
+    <div class="checkbox-group">
+        <div class="checkbox-wrapper">
+            <input type="checkbox" id="terms" @bind="agreeToTerms" disabled="@isLoading" />
+            <label for="terms" class="checkbox-label">
+                I agree to the <a href="javascript:void(0);" @onclick="OpenTermsModal" @onclick:preventDefault>Terms of Use</a> and <a href="javascript:void(0);" @onclick="OpenPrivacyModal" @onclick:preventDefault>Privacy Policy</a> of the DepEd ICT Equipment Inventory System
+            </label>
+        </div>
+    </div>
+
+    <button type="button" class="login-btn" @onclick="HandleRegister" disabled="@(!IsFormValid || isLoading)">
+        @if (isLoading)
+        {
+            <span style="display: flex; align-items: center; gap: 0.4rem;">
+                <span class="spinner"></span> REGISTERING...
+            </span>
+        }
+        else
+        {
+            <span>REGISTER</span>
+        }
+    </button>
+</form>
+
+<div class="divider">or</div>
+<div class="signup-section">
+    Already have an account? <a href="/" class="signup-link">Sign In</a>
+</div>
+</div>
+
+<!-- Modals -->
+<TermsModal IsOpen="showTermsModal" OnClose="CloseTermsModal" />
+<PrivacyPolicyModal IsOpen="showPrivacyModal" OnClose="ClosePrivacyModal" />
+
+@code {
+    private string email = "";
+    private string? password = "";
+    private string? confirmPassword = "";
+    private bool showPassword = false;
+    private bool showConfirmPassword = false;
+    private string passwordInputType = "password";
+    private string confirmPasswordInputType = "password";
+    private bool isLoading = false;
+    private string errorMessage = "";
+    private string resultMessage = "";
+    private bool agreeToTerms = false;
+    private ElementReference emailInputRef;
+    private bool showTermsModal = false;
+    private bool showPrivacyModal = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await emailInputRef.FocusAsync();
+        }
+    }
+
+    private void ValidatePasswords()
+    {
+        if (!string.IsNullOrWhiteSpace(confirmPassword) &&
+            password != confirmPassword)
+        {
+            errorMessage = "Passwords do not match.";
+            resultMessage = "failed";
+        }
+        else
+        {
+            errorMessage = "";
+        }
+    }
+
+    private bool IsFormValid =>
+        !string.IsNullOrWhiteSpace(email) &&
+        !string.IsNullOrWhiteSpace(password) &&
+        !string.IsNullOrWhiteSpace(confirmPassword) &&
+        password == confirmPassword &&
+        agreeToTerms;
+
+    private void TogglePasswordVisibility()
+    {
+        showPassword = !showPassword;
+        passwordInputType = showPassword ? "text" : "password";
+    }
+
+    private void ToggleConfirmPasswordVisibility()
+    {
+        showConfirmPassword = !showConfirmPassword;
+        confirmPasswordInputType = showConfirmPassword ? "text" : "password";
+    }
+
+    private async Task HandleRegister()
+    {
+        errorMessage = "";
+        resultMessage = "";
+
+        if (!agreeToTerms)
+        {
+            errorMessage = "You must agree to the Terms of Use and Privacy Policy to register.";
+            resultMessage = "failed";
+            return;
+        }
+
+        isLoading = true;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(password))
+            {
+                errorMessage = "Password is required.";
+                return;
+            }
+
+            var request = new
+            {
+                email,
+                password = ComputeMD5(password),
+                termsAndConditions = agreeToTerms
+            };
+
+            var response = await Http.PostAsJsonAsync("api/auth/register", request);
+
+            var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
+
+            if (response.IsSuccessStatusCode && result?.Success == true)
+            {
+                errorMessage = result.Message;
+                resultMessage = "success";
+
+                email = "";
+                password = "";
+                confirmPassword = "";
+                agreeToTerms = false;
+
+                StateHasChanged();
+                await Task.Delay(3000);
+
+                errorMessage = "";
+                resultMessage = "";
+
+                Navigation.NavigateTo("/");
+            }
+            else
+            {
+                errorMessage = result?.Message ?? "Registration failed.";
+                resultMessage = "failed";
+            }
+        }
+        catch
+        {
+            errorMessage = "Server error. Please try again.";
+            resultMessage = "failed";
+        }
+
+        isLoading = false;
+    }
+    // for terms and privacy open pop up modal function
+    private void OpenTermsModal()
+    {
+        showTermsModal = true;
+    }
+
+    private async Task CloseTermsModal()
+    {
+        showTermsModal = false;
+    }
+
+    private void OpenPrivacyModal()
+    {
+        showPrivacyModal = true;
+    }
+
+    private async Task ClosePrivacyModal()
+    {
+        showPrivacyModal = false;
+    }
+
+    private static string ComputeMD5(string input)
+    {
+        using var md5 = MD5.Create();
+        var bytes = md5.ComputeHash(Encoding.UTF8.GetBytes(input));
+        var sb = new StringBuilder();
+        for (int i = 0; i < bytes.Length; i++)
+            sb.Append(bytes[i].ToString("x2"));
+        return sb.ToString();
+    }
+}

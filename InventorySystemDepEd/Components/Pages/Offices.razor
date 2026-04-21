@@ -1,0 +1,224 @@
+﻿@page "/Offices"
+@layout MainLayout
+@using InventorySystemDepEd.Shared.DTOs
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<PageTitle>Offices - DepEd Lapu-Lapu Division</PageTitle>
+
+<div class="p-6 bg-gray-50 min-h-screen">
+
+    <!-- HEADER -->
+    <div class="flex justify-between items-end pb-4 mb-5 border-b border-gray-200">
+        <div>
+            <h1 class="text-lg font-bold text-[rgb(5,39,103)] tracking-tight mb-0.5">Offices</h1>
+            <p class="text-xs text-gray-400">Manage the list of offices and their details.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <input type="text"
+                   placeholder="Search offices..."
+                   class="border border-gray-300 rounded-lg px-4 py-2 text-xs"
+                   @bind="searchTerm"
+                   @bind:event="oninput"
+                   @onkeydown="HandleSearchKeyDown" />
+
+            <button class="bg-[#052767] hover:bg-[#041e52] text-white px-4 py-2 rounded-lg text-xs"
+                    @onclick="OpenCreateModal">
+                + Add Office
+            </button>
+        </div>
+    </div>
+
+    <div class="flex gap-1.5 mb-4">
+        <button class="px-4 py-1.5 text-xs font-medium rounded-full border transition
+            @(activeTab == "all"
+                                ? "bg-[rgb(5,39,103)] text-white border-[rgb(5,39,103)]"
+                                : "bg-white text-gray-500 border-gray-200 hover:border-[rgb(5,39,103)] hover:text-[rgb(5,39,103)]")"
+                @onclick='() => activeTab = "all"'>
+            All Offices
+        </button>
+        <button class="px-4 py-1.5 text-xs font-medium rounded-full border transition
+            @(activeTab == "dept"
+                                ? "bg-[rgb(5,39,103)] text-white border-[rgb(5,39,103)]"
+                                : "bg-white text-gray-500 border-gray-200 hover:border-[rgb(5,39,103)] hover:text-[rgb(5,39,103)]")"
+                @onclick='() => activeTab = "dept"'>
+            By Department
+        </button>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="flex justify-center py-16">
+            <div class="animate-spin h-10 w-10 border-b-2 border-[#052767] rounded-full"></div>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(validationMessage))
+    {
+        <div class="bg-red-100 text-red-700 p-4 rounded text-sm mb-4">
+            @validationMessage
+        </div>
+    }
+    else if (!FilteredOffices.Any())
+    {
+        <div class="bg-white rounded-xl shadow-sm border p-6">
+            <h4 class="text-lg font-semibold text-gray-700">No Offices Found</h4>
+        </div>
+    }
+    else
+    {
+        @if (activeTab == "all")
+        {
+            <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <table class="w-full text-xs">
+                    <thead>
+                        <tr class="bg-gradient-to-r from-[rgb(5,39,103)] to-[rgb(3,30,80)] text-white">
+                            <th class="px-4 py-3">Office Name</th>
+                            <th class="px-4 py-3">Contact</th>
+                            <th class="px-4 py-3">Location</th>
+                            <th class="px-4 py-3">Department</th>
+                            <th class="px-4 py-3 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var office in PaginatedOffices)
+                        {
+                            <tr class="border-t border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
+                                @onclick="() => NavigateToDetails(office.OfficeId)">
+                                <td class="px-4 py-3 text-gray-700">@office.OfficeName</td>
+                                <td class="px-4 py-3 text-gray-500">@office.ContactNumber</td>
+                                <td class="px-4 py-3 text-gray-500">@office.Location</td>
+                                <td class="px-4 py-3 text-gray-500">@office.DepartmentName</td>
+                                <td class="px-4 py-3 text-center flex justify-center gap-2">
+                                    <button class="px-3 py-1 bg-blue-600 text-white rounded"
+                                            @onclick:stopPropagation="true"
+                                            @onclick="() => EditOffice(office.OfficeId)">
+                                        Edit
+                                    </button>
+
+                                    <button class="px-3 py-1 bg-red-600 text-white rounded"
+                                            @onclick:stopPropagation="true"
+                                            @onclick="() => ConfirmDeleteOffice(office)">
+                                        Delete
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+
+                <Pagination TotalItems="FilteredOffices.Count"
+                            ItemsLabel="Total Offices"
+                            ItemsPerPage="itemsPerPage"
+                            CurrentPage="currentPage"
+                            OnPageChanged="HandlePageChanged" />
+            </div>
+        }
+        else if (activeTab == "dept")
+        {
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                @foreach (var group in FilteredOffices.GroupBy(o => o.DepartmentName))
+                {
+                    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                        <div class="bg-[#052767] px-4 py-2.5 flex items-center justify-between">
+                            <h3 class="font-semibold text-white text-xs tracking-wide">@group.Key</h3>
+                            <span class="text-xs text-white/70">@group.Count() @(group.Count() == 1 ? "office" : "offices")</span>
+                        </div>
+                        <ul class="divide-y divide-gray-100">
+                            @foreach (var office in group)
+                            {
+                                <li class="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 transition-colors">
+                                    <span class="text-xs text-gray-700">@office.OfficeName</span>
+                                    <button class="text-xs font-medium text-[rgb(5,39,103)] hover:underline underline-offset-2"
+                                            @onclick="() => NavigateToDetails(office.OfficeId)">
+                                        View
+                                    </button>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+#nullable enable
+
+    private List<OfficeDto> offices = new();
+    private OfficeDto editingOffice = new();
+    private OfficeDto? deletingOffice;
+
+    private bool isLoading = true;
+    private string? validationMessage;
+
+    private string searchTerm = "";
+    private string activeTab = "all";
+
+    private int currentPage = 1;
+    private int itemsPerPage = 8;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOffices();
+    }
+
+    private async Task LoadOffices()
+    {
+        isLoading = true;
+        try
+        {
+            offices = await Http.GetFromJsonAsync<List<OfficeDto>>("api/offices") ?? new();
+        }
+        catch (Exception ex)
+        {
+            validationMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private List<OfficeDto> FilteredOffices =>
+        offices.Where(o =>
+            string.IsNullOrWhiteSpace(searchTerm) ||
+            (o.OfficeName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (o.Location?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (o.DepartmentName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false)
+        ).ToList();
+
+    private List<OfficeDto> PaginatedOffices =>
+        FilteredOffices
+            .Skip((currentPage - 1) * itemsPerPage)
+            .Take(itemsPerPage)
+            .ToList();
+
+    private void OpenCreateModal()
+    {
+        editingOffice = new OfficeDto();
+        validationMessage = "";
+    }
+
+    private async Task EditOffice(int id)
+    {
+        editingOffice = await Http.GetFromJsonAsync<OfficeDto>($"api/offices/{id}") ?? new OfficeDto();
+    }
+
+    private void ConfirmDeleteOffice(OfficeDto office)
+    {
+        deletingOffice = office;
+    }
+
+    private void NavigateToDetails(int id)
+        => Navigation.NavigateTo($"/OfficeDetails/{id}");
+
+    private void HandleSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+            searchTerm = "";
+    }
+
+    private void HandlePageChanged(int page)
+        => currentPage = page;
+}

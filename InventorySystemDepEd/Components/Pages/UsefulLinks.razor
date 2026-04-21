@@ -1,0 +1,251 @@
+@page "/useful-links"
+@layout MainLayout
+
+<PageTitle>Useful Links - DepEd Lapu-Lapu</PageTitle>
+
+<div class="useful-links-container">
+    <!-- Header section -->
+    <div class="header">
+        <h1>
+            <span class="bi bi-link-45deg" aria-hidden="true"></span>
+            Useful Links
+        </h1>
+        <p class="header-description">Quick access to important DepEd Lapu-Lapu resources and portals</p>
+    </div>
+
+    <!-- Info section -->
+    <div class="info-section">
+        <span class="bi bi-info-circle" aria-hidden="true"></span>
+        <span>Click on any card to open the link in a new browser tab</span>
+    </div>
+
+    <!-- Links grid -->
+    <div class="links-grid">
+        @foreach (var link in links)
+        {
+            <div class="link-card" @onclick="() => OpenLink(link.Url)">
+                <div class="link-icon">
+                    <span class="bi @link.Icon" aria-hidden="true"></span>
+                </div>
+                <div class="link-content">
+                    <h3 class="link-title">@link.Title</h3>
+                    <p class="link-description">@link.Description</p>
+                    <div class="link-url">
+                        <span class="bi bi-box-arrow-up-right" aria-hidden="true"></span>
+                        @link.DisplayUrl
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    /* Main container */
+.useful-links-container {
+    padding: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    animation: fadeIn 0.4s ease-in;
+}
+
+/* Fade-in animation */
+@@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Header section */
+.header {
+    margin-bottom: 2rem;
+    border-bottom: 3px solid #e9ecef;
+    padding-bottom: 1.5rem;
+}
+
+.header h1 {
+    margin: 0 0 0.5rem 0;
+    font-size: 2rem;
+    font-weight: 700;
+    color: rgb(5, 39, 103);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.header h1 .bi {
+    font-size: 1.8rem;
+}
+
+.header-description {
+    margin: 0;
+    color: #6c757d;
+    font-size: 1rem;
+    padding-left: 2.5rem;
+}
+
+/* Grid layout */
+.links-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* Card */
+.link-card {
+    background: white;
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    padding: 1.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    gap: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.link-card:hover {
+    border-color: rgb(5, 39, 103);
+    box-shadow: 0 8px 16px rgba(5, 39, 103, 0.15);
+    transform: translateY(-4px);
+}
+
+/* Icon */
+.link-icon {
+    flex-shrink: 0;
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgb(5, 39, 103), rgb(8, 60, 150));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.8rem;
+    box-shadow: 0 4px 8px rgba(5,39,103,0.2);
+}
+
+/* Content */
+.link-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    overflow: hidden;
+}
+
+.link-title {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: rgb(5, 39, 103);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.link-description {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #6c757d;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.link-url {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    color: #495057;
+    margin-top: auto;
+    padding-top: 0.5rem;
+    border-top: 1px solid #f0f0f0;
+    font-family: 'Consolas','Monaco',monospace;
+    
+    /* Allow wrapping instead of cutting off */
+    white-space: normal;      /* allow wrapping */
+    overflow: visible;        /* don't hide overflowing text */
+    word-break: break-all;    /* break long words if needed */
+}
+
+.link-url .bi {
+    font-size: 0.9rem;
+    color: rgb(5,39,103);
+}
+
+/* Info section */
+.info-section {
+    background: #f8f9fa;
+    border-left: 4px solid rgb(5,39,103);
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #495057;
+    font-size: 0.9rem;
+    margin-bottom: 2rem;
+}
+
+.info-section .bi {
+    font-size: 1.2rem;
+    color: rgb(5,39,103);
+}
+
+/* Responsive design */
+@@media (max-width: 768px) {
+    .useful-links-container {
+        padding: 1rem;
+    }
+
+    .links-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .header h1 {
+        font-size: 1.5rem;
+    }
+
+    .header-description {
+        padding-left: 0;
+        margin-top: 0.5rem;
+    }
+
+    .link-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+</style>
+
+@inject IJSRuntime JSRuntime
+
+@code {
+    private class LinkItem
+    {
+        public string Title { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Url { get; set; } = "";
+        public string DisplayUrl { get; set; } = "";
+        public string Icon { get; set; } = "";
+    }
+
+    private List<LinkItem> links = new()
+    {
+        new LinkItem { Title="Division Memorandum", Description="Access official division memorandums, circulars, and policy documents from DepEd Lapu-Lapu City Division.", Url="https://depedlapulapu.net.ph/issuances/division-memorandum/", DisplayUrl="depedlapulapu.net.ph/issuances/division-memorandum", Icon="bi-file-earmark-text" },
+        new LinkItem { Title="Unnumbered Memorandum", Description="View unnumbered memorandums and informal communications from the division office.", Url="https://depedlapulapu.net.ph/issuances/unnumbered-memorandum/", DisplayUrl="depedlapulapu.net.ph/issuances/unnumbered-memorandum", Icon="bi-file-earmark" },
+        new LinkItem { Title="Division Advisories", Description="Stay updated with the latest division advisories, announcements, and important notices.", Url="https://depedlapulapu.net.ph/issuances/division-advisories/", DisplayUrl="depedlapulapu.net.ph/issuances/division-advisories", Icon="bi-megaphone" },
+        new LinkItem { Title="Procurement and Forms", Description="Download procurement documents, official forms, and templates for division operations.", Url="https://depedlapulapu.net.ph/procurement-and-forms/", DisplayUrl="depedlapulapu.net.ph/procurement-and-forms", Icon="bi-clipboard-check" }
+    };
+
+    private async Task OpenLink(string url)
+    {
+        await JSRuntime.InvokeAsync<object>("open", url, "_blank");
+    }
+}

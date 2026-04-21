@@ -1,0 +1,201 @@
+﻿<div class="flex flex-col h-screen overflow-hidden">
+    <!-- Header with logo and title -->
+    <div class="flex flex-col items-center justify-center p-4 border-b border-white/10 gap-2">
+        <img src="images/logo.png" alt="DepEd Logo" class="h-20 w-20 object-contain flex-shrink-0 hover:opacity-80 transition-opacity" />
+        @*
+        Previous code:
+        <span class="text-base font-semibold text-white">
+            @(SessionData.UserRole ?? "Guest")
+        </span>
+        <NavLink href="profile" class="inline-block text-white/70 text-xs no-underline">
+            <small>
+                @(SessionData.UserRole ?? "Not logged in")
+            </small>
+        </NavLink>
+        *@
+        <!-- Display user first and last name -->
+        <NavLink href="Profile" class="text-base font-semibold text-white hover:text-white/80 transition-colors no-underline">
+            @(string.IsNullOrEmpty(SessionData.UserFullName) ? "Guest User" : GetDisplayName())
+        </NavLink>
+        <span class="text-white/70 text-xs">
+            @(SessionData.UserRole ?? "Not logged in")
+        </span>
+    </div>
+                                        
+    <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+    <!-- Navigation menu -->
+    <nav class="flex flex-col flex-1 overflow-y-auto overflow-x-hidden min-h-0 w-full
+        scrollbar-thin scrollbar-thumb-white/40 scrollbar-track-white/5 hover:scrollbar-thumb-white/60">
+        <!-- Dashboard link -->
+        <div class="px-3 py-0.5">
+            <NavLink class="block px-3 py-2 rounded text-white hover:bg-white/10 transition-colors no-underline" href="Dashboard" Match="NavLinkMatch.All">
+                Dashboard
+            </NavLink>
+        </div>
+
+        <!-- Inventory dropdown menu -->
+        <div class="px-3 py-0.5">
+            <button class="bg-transparent border-0 w-full text-left cursor-pointer flex items-center justify-between px-3 py-2 text-white hover:bg-white/10 rounded transition-colors" @onclick="ToggleDropdown">
+                <span>Inventory</span>
+                <span class="bi bi-chevron-down text-white inline-block ml-2 font-bold transition-transform duration-300 @(showDropdown ? "rotate-180" : "")" aria-hidden="true"></span>
+            </button>
+            <div class="pl-8 flex flex-col gap-1 overflow-hidden transition-all duration-300 @(showDropdown ? "max-h-[500px] opacity-100 mt-1" : "max-h-0 opacity-0 mt-0")" @onclick:stopPropagation="true">
+                <NavLink class="block px-2 py-1.5 text-sm rounded text-white hover:bg-white/10 transition-colors no-underline" href="counter/transactions">
+                    <span class="bi bi-arrow-left-right" aria-hidden="true"></span> Transactions
+                </NavLink>
+                <NavLink class="block px-2 py-1.5 text-sm rounded text-white hover:bg-white/10 transition-colors no-underline" href="counter/ris-ics-par">
+                    <span class="bi bi-file-earmark" aria-hidden="true"></span> RIS/ICS/PAR
+                </NavLink>
+                <NavLink class="block px-2 py-1.5 text-sm rounded text-white hover:bg-white/10 transition-colors no-underline" href="counter/property-sticker">
+                    <span class="bi bi-tag" aria-hidden="true"></span> Property Sticker
+                </NavLink>
+                <NavLink class="block px-2 py-1.5 text-sm rounded text-white hover:bg-white/10 transition-colors no-underline" href="counter/property-return">
+                    <span class="bi bi-arrow-counterclockwise" aria-hidden="true"></span> Property Return
+                </NavLink>
+                <NavLink class="block px-2 py-1.5 text-sm rounded text-white hover:bg-white/10 transition-colors no-underline" href="counter/property-transfer">
+                    <span class="bi bi-arrow-right-circle" aria-hidden="true"></span> Property Transfer
+                </NavLink>
+                <NavLink class="block px-2 py-1.5 text-sm rounded text-white hover:bg-white/10 transition-colors no-underline" href="counter/property-card">
+                    <span class="bi bi-card-heading" aria-hidden="true"></span> Property Card
+                </NavLink>
+                <NavLink class="block px-2 py-1.5 text-sm rounded text-white hover:bg-white/10 transition-colors no-underline" href="counter/stock-card">
+                    <span class="bi bi-graph-up" aria-hidden="true"></span> Stock Card
+                </NavLink>
+            </div>
+        </div>
+
+        <!-- Procurement dropdown menu -->
+        <div class="px-3 py-0.5">
+            <button class="bg-transparent border-0 w-full text-left cursor-pointer flex items-center justify-between px-3 py-2 text-white hover:bg-white/10 rounded transition-colors" @onclick="ToggleProcurementDropdown">
+                <span>Procurement</span>
+                <span class="bi bi-chevron-down text-white inline-block ml-2 font-bold transition-transform duration-300 @(showProcurementDropdown ? "rotate-180" : "")" aria-hidden="true"></span>
+            </button>
+            <div class="pl-8 flex flex-col gap-1 overflow-hidden transition-all duration-300 @(showProcurementDropdown ? "max-h-[500px] opacity-100 mt-1" : "max-h-0 opacity-0 mt-0")" @onclick:stopPropagation="true">
+                <NavLink class="block px-2 py-1.5 text-sm rounded text-white hover:bg-white/10 transition-colors no-underline" href="procurement/purchase-requests">
+                    <span class="bi bi-file-text" aria-hidden="true"></span> Purchase Requests
+                </NavLink>
+                <NavLink class="block px-2 py-1.5 text-sm rounded text-white hover:bg-white/10 transition-colors no-underline" href="procurement/purchase-orders">
+                    <span class="bi bi-receipt" aria-hidden="true"></span> Purchase Orders
+                </NavLink>
+                <NavLink class="block px-2 py-1.5 text-sm rounded text-white hover:bg-white/10 transition-colors no-underline" href="procurement/suppliers">
+                    <span class="bi bi-people" aria-hidden="true"></span> Suppliers
+                </NavLink>
+            </div>
+        </div>
+
+        <!-- Accountings dropdown menu - Administrator only -->
+        @* @if (SessionData.UserRole == "Administrator") *@
+        @* { *@
+
+        <div class="px-3 py-0.5">
+            <button class="bg-transparent border-0 w-full text-left cursor-pointer flex items-center justify-between px-3 py-2 text-white hover:bg-white/10 rounded transition-colors" @onclick="ToggleAccountingDropdown">
+                <span>Accounting</span>
+                <span class="bi bi-chevron-down text-white inline-block ml-2 font-bold transition-transform duration-300 @(showAccountingDropdown ? "rotate-180" : "")" aria-hidden="true"></span>
+            </button>
+            <div class="pl-8 flex flex-col gap-1 overflow-hidden transition-all duration-300 @(showAccountingDropdown ? "max-h-[500px] opacity-100 mt-1" : "max-h-0 opacity-0 mt-0")" @onclick:stopPropagation="true">
+                <NavLink class="block px-2 py-1.5 text-sm rounded text-white hover:bg-white/10 transition-colors no-underline" href="account-list">
+                    <span class="bi bi-list-ul" aria-hidden="true"></span> Account List
+                </NavLink>
+            </div>
+        </div>
+        <div class="px-3 py-0.5">
+            <NavLink class="block px-3 py-2 rounded text-white hover:bg-white/10 transition-colors no-underline" href="Personnels">
+                Personnel
+            </NavLink>
+        </div>
+        <div class="px-3 py-0.5">
+            <NavLink class="block px-3 py-2 rounded text-white hover:bg-white/10 transition-colors no-underline" href="Offices">
+                Offices
+            </NavLink>
+        </div>
+        <div class="px-3 py-0.5">
+            <NavLink class="block px-3 py-2 rounded text-white hover:bg-white/10 transition-colors no-underline" href="Settings">
+                Settings
+            </NavLink>
+        </div>
+        @* } *@
+
+        <!-- Useful Links -->
+        <div class="px-3 py-0.5">
+            <NavLink class="block px-3 py-2 rounded text-white hover:bg-white/10 transition-colors no-underline" href="useful-links">
+                Useful Links
+            </NavLink>
+        </div>
+    </nav>
+
+    <!-- Account and Logout footer -->
+    <div class="border-t-2 border-white/15 pt-3 pb-2 bg-black/10 flex-shrink-0">
+        @* @if (SessionData.UserRole == "Administrator") *@
+        {
+        <div class="px-3 py-1">
+            <NavLink class="flex items-center gap-2.5 font-semibold text-base px-3 py-2 rounded text-white hover:bg-white/10 transition-colors no-underline" href="Account">
+                Account
+            </NavLink>
+        </div>
+        @* } *@
+
+        <!-- Logout button -->
+        <div class="px-3 py-1">
+            <button class="bg-transparent border-0 w-full text-left cursor-pointer flex items-center gap-2 px-3 py-2 text-red-400 text-base font-medium hover:bg-red-400/10 rounded hover:text-red-500 transition-all" @onclick="HandleLogout">
+                Logout
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Optional desktop scrollbar CSS for consistency -->
+<style>
+    nav::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    nav::-webkit-scrollbar-thumb {
+        background-color: rgba(255, 255, 255, 0.4); /* transparent white */
+        border-radius: 4px;
+    }
+
+    nav::-webkit-scrollbar-track {
+        background-color: rgba(255, 255, 255, 0.05); /* faint track */
+    }
+</style>
+
+@inject NavigationManager Navigation
+
+@code {
+    // Dropdown state
+    private bool showDropdown = false;
+    private bool showAccountingDropdown = false;
+    private bool showProcurementDropdown = false;
+
+    // Toggle dropdown
+    private void ToggleDropdown() => showDropdown = !showDropdown;
+
+    private void ToggleAccountingDropdown() => showAccountingDropdown = !showAccountingDropdown;
+
+    private void ToggleProcurementDropdown() => showProcurementDropdown = !showProcurementDropdown;
+
+    // Handle logout
+    private void HandleLogout()
+    {
+        SessionData.IsLoggedIn = false;
+        SessionData.CurrentUserId = 0;
+        SessionData.UserFullName = string.Empty;
+
+        Navigation.NavigateTo("/", forceLoad: true);
+    }
+
+    // Extract first and last name from full name using split
+    private string GetDisplayName()
+    {
+        if (string.IsNullOrEmpty(SessionData.UserFullName))
+            return "User";
+
+        var parts = SessionData.UserFullName.Trim().Split(' ');
+
+        if (parts.Length == 1)
+            return parts[0];
+
+        return $"{parts[0]} {parts[^1]}";
+    }
+}

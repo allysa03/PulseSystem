@@ -1,0 +1,10 @@
+@InventorySystemDepEd.Api_HostAddress = http://localhost:5170
+
+### LOGIN TEST
+POST {{InventorySystemDepEd.Api_HostAddress}}/api/Auth/login
+Content-Type: application/json
+
+{
+  "email": "antitregis@deped.gov.ph",
+  "password": "f931423f0c9c69b9f909b130df0232fa"
+}

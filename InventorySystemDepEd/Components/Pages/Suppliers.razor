@@ -1,0 +1,558 @@
+@page "/procurement/suppliers"
+@layout MainLayout
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Suppliers - DepEd Lapu-Lapu Division</PageTitle>
+
+<div class="p-6 bg-gray-100 min-h-screen">
+
+    <!-- Header -->
+    <div class="mb-4 border-b-2 border-gray-200 pb-3 flex justify-between items-center">
+        <div class="flex flex-col">
+            <h1 class="text-xl font-bold text-[rgb(5,39,103)] tracking-tight mb-0.5">Suppliers</h1>
+            <p class="text-xs text-gray-500">Manage the list of suppliers for procurement transactions.</p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <input type="text"
+                   placeholder="Search suppliers..."
+                   class="border border-gray-300 rounded-lg px-4 py-2 text-xs focus:ring-2 focus:ring-[#052767] focus:outline-none"
+                   @bind="searchTerm"
+                   @bind:event="oninput"
+                   @onkeydown="HandleSearchKeyDown" />
+            <button class="bg-[#052767] hover:bg-[#041e52] text-white px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-2"
+                    @onclick="OpenCreateModal">
+                <span class="text-md font-bold">+</span> Add Supplier
+            </button>
+        </div>
+    </div>
+    <!-- Toast Notification -->
+    @if (showToast)
+    {
+        <div class="fixed top-4 z-[9999] flex justify-center pointer-events-none"
+             style="left: 50%; transform: translateX(-50%);">
+            <div class="px-6 py-4 rounded-lg flex items-center gap-4 pointer-events-auto animate-fade-in shadow-xl"
+                 style="@toastBackgroundStyle; min-width: 280px; max-width: 380px;">
+
+                <div class="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
+                     style="background: rgba(255,255,255,0.2);">
+                    <span class="@iconClassValue text-xl"></span>
+                </div>
+
+                <div class="flex-1 min-w-0">
+                    <p class="font-semibold text-sm text-white">@toastTitle</p>
+                    <p class="text-xs text-white mt-0.5">@toastMessage</p>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Loading / Error / Empty States -->
+    @if (isLoading)
+    {
+        <div class="flex flex-col items-center justify-center py-16">
+            <div class="animate-spin h-12 w-12 border-b-2 border-[#052767] rounded-full"></div>
+            <p class="mt-4 text-gray-500">Loading suppliers...</p>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(validationMessage))
+    {
+        <div class="bg-red-100 text-red-700 p-4 rounded text-sm mb-4">
+            @validationMessage
+        </div>
+    }
+    else if (!FilteredSuppliers.Any())
+    {
+        <div class="bg-white rounded-xl shadow-sm border p-6">
+            <h4 class="text-lg font-semibold text-gray-700">No Suppliers Found</h4>
+            <p class="text-gray-500 text-xs mt-1">There are currently no suppliers in the system.</p>
+        </div>
+    }
+    else
+    {
+        <!-- Table -->
+        <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="bg-gradient-to-r from-[rgb(5,39,103)] to-[rgb(3,30,80)] text-white">
+                        <th class="px-4 py-3">Name</th>
+                        <th class="px-4 py-3">Address</th>
+                        <th class="px-4 py-3">Email</th>
+                        <th class="px-4 py-3 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y">
+                    @foreach (var supplier in PaginatedSuppliers)
+                    {
+                        <tr class="hover:bg-gray-100 transition cursor-pointer" @onclick="() => EditSupplier(supplier.SupplierId)">
+                            <td class="px-4 py-3">
+                                <div class="font-semibold">@supplier.SupplierName</div>
+                                <div class="text-xs text-gray-500">@supplier.SupplierContactNumber</div>
+                            </td>
+                            <td class="px-4 py-3">@supplier.SupplierAddress</td>
+                            <td class="px-4 py-3">@supplier.SupplierEmailAddress</td>
+                            <td class="px-4 py-3 text-center flex justify-center gap-2">
+                                <button class="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition duration-150 shadow-sm"
+                                        @onclick="() => EditSupplier(supplier.SupplierId)"
+                                        @onclick:stopPropagation="true">
+                                    Edit
+                                </button>
+                                <button class="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition duration-150 shadow-sm"
+                                        @onclick="() => ConfirmDeleteSupplier(supplier)"
+                                        @onclick:stopPropagation="true">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <!-- Pagination Component -->
+            <Pagination TotalItems="FilteredSuppliers.Count"
+                        ItemsLabel="Total Supplier"
+                        ItemsPerPage="itemsPerPage"
+                        CurrentPage="currentPage"
+                        OnPageChanged="HandlePageChanged" />
+        </div>
+    }
+</div>
+
+<!-- Add / Edit Supplier Modal -->
+@if (showCreateModal)
+{
+    <div class="fixed inset-0 z-[9999] flex items-center justify-center backdrop-blur-md"
+         @onclick="CloseCreateModal">
+
+        <div class="bg-white/70 backdrop-blur-md rounded-xl shadow-2xl w-11/12 max-w-3xl max-h-[90vh] overflow-hidden flex flex-col border border-white/30"
+             @onclick:stopPropagation>
+
+            <!-- HEADER -->
+            <div class="px-6 py-2 bg-gradient-to-r from-[#052767] to-[#031e50] flex justify-between items-center text-white rounded-t-xl">
+                <h2 class="text-base font-semibold leading-none">
+                    @((editingSupplier?.SupplierId ?? 0) == 0 ? "Add Supplier" : "Edit Supplier")
+                </h2>
+                <button class="text-lg font-semibold hover:text-gray-200 flex items-center justify-center leading-none w-6 h-6"
+                        @onclick="CloseCreateModal">
+                    ✕
+                </button>
+            </div>
+
+            <!-- BODY -->
+            <div class="p-6 overflow-y-auto flex-1 space-y-6">
+
+                <!-- SUPPLIER INFORMATION CARD -->
+                <div class="bg-white/80 backdrop-blur-sm p-4 rounded-lg shadow-sm border border-white/30">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Supplier Information</h3>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Name</label>
+                            <input type="text"
+                                   class="w-full border rounded-md px-3 py-2"
+                                   @bind="editingSupplier!.SupplierName"
+                                   placeholder="Enter name" />
+
+                            @if (!string.IsNullOrEmpty(supplierNameError))
+                            {
+                                <p class="text-xs text-red-500 mt-1">@supplierNameError</p>
+                            }
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">TIN</label>
+                            <input type="text"
+                                   class="w-full border rounded-md px-3 py-2"
+                                   @bind="editingSupplier.SupplierTinNumber"
+                                   placeholder="Enter TIN" />
+
+                            @if (!string.IsNullOrEmpty(supplierTinError))
+                            {
+                                <p class="text-xs text-red-500 mt-1">@supplierTinError</p>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Email</label>
+                            <input type="email"
+                                   class="w-full border rounded-md px-3 py-2"
+                                   @bind="editingSupplier.SupplierEmailAddress"
+                                   placeholder="Enter email" />
+
+                            @if (!string.IsNullOrEmpty(supplierEmailError))
+                            {
+                                <p class="text-xs text-red-500 mt-1">@supplierEmailError</p>
+                            }
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Contact</label>
+                            <input type="text"
+                                   class="w-full border rounded-md px-3 py-2"
+                                   @bind="editingSupplier.SupplierContactNumber"
+                                   placeholder="Enter contact" />
+
+                            @if (!string.IsNullOrEmpty(supplierContactError))
+                            {
+                                <p class="text-xs text-red-500 mt-1">@supplierContactError</p>
+                            }
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Address</label>
+                        <input type="text"
+                               class="w-full border rounded-md px-3 py-2"
+                               @bind="editingSupplier.SupplierAddress"
+                               placeholder="Enter address" />
+
+                        @if (!string.IsNullOrEmpty(supplierAddressError))
+                        {
+                            <p class="text-xs text-red-500 mt-1">@supplierAddressError</p>
+                        }
+                    </div>
+                </div>
+
+                <!-- VALIDATION -->
+                @if (!string.IsNullOrEmpty(validationMessage))
+                {
+                    <div class="bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm shadow">
+                        @validationMessage
+                    </div>
+                }
+
+            </div>
+
+            <!-- FOOTER -->
+            <div class="flex justify-end gap-3 border-t border-white/30 px-6 py-4 bg-white/50">
+                <button class="px-4 py-2 border rounded-md hover:bg-gray-100/50" @onclick="CloseCreateModal">Cancel</button>
+                <button class="px-4 py-2 bg-[#052767] text-white rounded-md hover:bg-[#041e52]" @onclick="SaveSupplier">Save Supplier </button>
+            </div>
+
+        </div>
+    </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (showDeleteModal && deletingSupplier != null)
+{
+    <div class="fixed inset-0 z-[9999] flex items-center justify-center bg-opacity-50 backdrop-blur-sm"
+         @onclick="CancelDelete">
+        <div class="bg-white rounded-xl shadow-2xl w-11/12 max-w-md overflow-hidden flex flex-col"
+             @onclick:stopPropagation>
+            <div class="px-4 py-3 bg-red-600 flex justify-between items-center text-white">
+                <h2 class="text-lg font-semibold">Confirm Delete</h2>
+                <button class="text-xl hover:text-gray-200" @onclick="CancelDelete">✕</button>
+            </div>
+            <div class="p-4 bg-gray-50">
+                <p class="text-gray-700 text-sm">
+                    Are you sure you want to delete supplier
+                    <span class="font-semibold">@deletingSupplier.SupplierName</span>?
+                </p>
+            </div>
+            <div class="flex justify-end gap-3 border-t px-5 py-4 bg-gray-50">
+                <button class="px-4 py-2 border rounded-md hover:bg-gray-100" @onclick="CancelDelete">Cancel</button>
+                <button class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700" @onclick="DeleteSupplierConfirmed">
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<SupplierDto> suppliers = new();
+    private SupplierDto editingSupplier = new();
+    private bool isLoading = true;
+    private bool showCreateModal = false;
+    private bool showDeleteModal = false;
+    private string searchTerm = "";
+    private int currentPage = 1;
+    private int itemsPerPage = 8;
+    private string validationMessage = "";
+    private SupplierDto? deletingSupplier;
+    // Toast
+    private bool showToast = false;
+    private string toastTitle = "";
+    private string toastMessage = "";
+    private string iconClassValue = "";
+    private string toastBackgroundStyle = "";
+    // Validation
+    private string supplierNameError = "";
+    private string supplierEmailError = "";
+    private string supplierContactError = "";
+    private string supplierAddressError = "";
+    private string supplierTinError = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSuppliers();
+    }
+
+    private void HandleSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            searchTerm = string.Empty;
+        }
+    }
+    // Success Toast
+    private async Task ShowSuccessToast(string title, string message)
+    {
+        toastTitle = title;
+        toastMessage = message;
+        iconClassValue = "bi bi-check-circle-fill text-white";
+        toastBackgroundStyle = "background-color: #1b5e20;"; // green
+
+        showToast = true;
+        StateHasChanged();
+
+        await Task.Delay(3000);
+
+        showToast = false;
+        StateHasChanged();
+    }
+    // Error Toast
+    private async Task ShowErrorToast(string title, string message)
+    {
+        toastTitle = title;
+        toastMessage = message;
+        iconClassValue = "bi bi-x-circle-fill text-white";
+        toastBackgroundStyle = "background-color: #b91c1c;"; // red
+
+        showToast = true;
+        StateHasChanged();
+
+        await Task.Delay(3000);
+
+        showToast = false;
+        StateHasChanged();
+    }
+    // Clear Validation
+    private void ClearValidation()
+    {
+        supplierNameError = "";
+        supplierEmailError = "";
+        supplierContactError = "";
+        supplierAddressError = "";
+        supplierTinError = "";
+    }
+
+    // ✅ GET ALL (API)
+    private async Task LoadSuppliers()
+    {
+        isLoading = true;
+        try
+        {
+            suppliers =
+                await Http.GetFromJsonAsync<List<SupplierDto>>("api/suppliers")
+                ?? new List<SupplierDto>();
+        }
+        catch (Exception ex)
+        {
+            suppliers = new List<SupplierDto>();
+            validationMessage = $"Error loading suppliers: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    // ✅ FILTERING (UNCHANGED UI LOGIC)
+    private List<SupplierDto> FilteredSuppliers =>
+        string.IsNullOrWhiteSpace(searchTerm)
+            ? suppliers
+            : suppliers.Where(s =>
+                (s.SupplierName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (s.SupplierAddress?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false))
+              .ToList();
+
+    private List<SupplierDto> PaginatedSuppliers =>
+        FilteredSuppliers
+            .Skip((currentPage - 1) * itemsPerPage)
+            .Take(itemsPerPage)
+            .ToList();
+
+    private void OpenCreateModal()
+    {
+        editingSupplier = new SupplierDto();
+        validationMessage = "";
+        ClearValidation();
+        showCreateModal = true;
+    }
+
+    private void CloseCreateModal()
+    {
+        showCreateModal = false;
+        editingSupplier = new SupplierDto();
+        validationMessage = "";
+        ClearValidation();
+    }
+
+    // ✅ CREATE / UPDATE (API)
+    private async Task SaveSupplier()
+    {
+        // 🔥 CLEAR ERRORS FIRST
+        supplierNameError = "";
+        supplierEmailError = "";
+        supplierContactError = "";
+        supplierAddressError = "";
+        supplierTinError = "";
+
+        var isValid = true;
+
+        // ✅ NAME
+        if (string.IsNullOrWhiteSpace(editingSupplier.SupplierName))
+        {
+            supplierNameError = "Supplier name is required.";
+            isValid = false;
+        }
+
+        // ✅ EMAIL
+        if (string.IsNullOrWhiteSpace(editingSupplier.SupplierEmailAddress))
+        {
+            supplierEmailError = "Email is required.";
+            isValid = false;
+        }
+        else if (!System.Text.RegularExpressions.Regex.IsMatch(
+            editingSupplier.SupplierEmailAddress,
+            @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+        {
+            supplierEmailError = "Invalid email format.";
+            isValid = false;
+        }
+
+        // ✅ CONTACT
+        if (string.IsNullOrWhiteSpace(editingSupplier.SupplierContactNumber))
+        {
+            supplierContactError = "Contact number is required.";
+            isValid = false;
+        }
+
+        // ✅ ADDRESS
+        if (string.IsNullOrWhiteSpace(editingSupplier.SupplierAddress))
+        {
+            supplierAddressError = "Address is required.";
+            isValid = false;
+        }
+
+        // ✅ TIN (optional but validated if provided)
+        if (!string.IsNullOrWhiteSpace(editingSupplier.SupplierTinNumber) &&
+            editingSupplier.SupplierTinNumber.Length < 9)
+        {
+            supplierTinError = "TIN must be at least 9 characters.";
+            isValid = false;
+        }
+
+        // ❌ STOP IF INVALID
+        if (!isValid) return;
+
+        try
+        {
+            bool isNew = editingSupplier.SupplierId == 0;
+
+            if (isNew)
+            {
+                var response = await Http.PostAsJsonAsync("api/suppliers", editingSupplier);
+                if (!response.IsSuccessStatusCode)
+                {
+                    validationMessage = "Failed to create supplier.";
+                    return;
+                }
+            }
+            else
+            {
+                var response = await Http.PutAsJsonAsync($"api/suppliers/{editingSupplier.SupplierId}", editingSupplier);
+                if (!response.IsSuccessStatusCode)
+                {
+                    validationMessage = "Failed to update supplier.";
+                    return;
+                }
+            }
+
+            await LoadSuppliers();
+            CloseCreateModal();
+
+            await ShowSuccessToast(
+                "Success",
+                isNew ? "Supplier added successfully." : "Supplier updated successfully."
+            );
+        }
+        catch (Exception ex)
+        {
+            validationMessage = $"Error saving supplier: {ex.Message}";
+        }
+    }
+
+    // ✅ GET BY ID (API)
+    private async Task EditSupplier(int id)
+    {
+        try
+        {
+            var supplier =
+                await Http.GetFromJsonAsync<SupplierDto>($"api/suppliers/{id}");
+
+            if (supplier != null)
+            {
+                editingSupplier = supplier;
+                validationMessage = "";
+                ClearValidation();
+                showCreateModal = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            validationMessage = $"Error fetching supplier: {ex.Message}";
+        }
+    }
+
+    private void ConfirmDeleteSupplier(SupplierDto supplier)
+    {
+        deletingSupplier = supplier;
+        showDeleteModal = true;
+    }
+
+    private void CancelDelete()
+    {
+        showDeleteModal = false;
+        deletingSupplier = null;
+    }
+
+    // ✅ DELETE (API)
+    private async Task DeleteSupplierConfirmed()
+    {
+        if (deletingSupplier == null) return;
+
+        try
+        {
+            var response =
+                await Http.DeleteAsync($"api/suppliers/{deletingSupplier.SupplierId}");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                validationMessage = "Failed to delete supplier.";
+                return;
+            }
+
+            await LoadSuppliers();
+        }
+        catch (Exception ex)
+        {
+            validationMessage = $"Error deleting supplier: {ex.Message}";
+        }
+        finally
+        {
+            showDeleteModal = false;
+            deletingSupplier = null;
+        }
+    }
+
+    private void HandlePageChanged(int page)
+    {
+        currentPage = page;
+    }
+}

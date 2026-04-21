@@ -1,0 +1,960 @@
+﻿@page "/Personnels"
+@layout MainLayout
+@inject NavigationManager Navigation
+@using InventorySystemDepEd.Shared.Excel.Imports
+@inject HttpClient Http
+@inject IJSRuntime JS
+@using System.Net.Http.Json;
+
+<PageTitle>Personnels - DepEd Lapu-Lapu Division</PageTitle>
+
+<div class="p-6 bg-gray-100 min-h-screen">
+
+    <!-- Header -->
+    <div class="mb-4 border-b-2 border-gray-200 pb-3 flex justify-between items-center">
+        <div class="flex flex-col">
+            <h1 class="text-xl font-bold text-[rgb(5,39,103)] tracking-tight mb-0.5">Personnels</h1>
+            <p class="text-xs text-gray-500">Manage the list of personnels for the department.</p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <input type="text"
+                   placeholder="Search personnels..."
+                   class="border border-gray-300 rounded-lg px-4 py-2 text-xs focus:ring-2 focus:ring-[#052767] focus:outline-none"
+                   @bind="searchTerm"
+                   @bind:event="oninput"
+                   @onkeydown="HandleSearchKeyDown" />
+
+            <button class="bg-[#052767] hover:bg-[#041e52] text-white px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-2"
+                    @onclick="OpenCreateModal">
+                <span class="text-md font-bold">+</span> Add Personnel
+            </button>
+
+            <!-- Excel Dropdown -->
+            <div class="relative">
+                <button class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-1"
+                    @onclick="() => showDropdown = !showDropdown"
+                    @onclick:stopPropagation>
+                    Excel Actions <span class="ml-1">▼</span>
+                </button>
+
+                @if (showDropdown)
+                {
+                    <div class="absolute right-0 mt-1 w-48 bg-white border rounded-md shadow-lg z-50">
+                       <button class="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                                @onclick='() => DownloadTemplate("Personnel")'>
+                            Download Template
+                       </button> 
+                        <button class="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                                @onclick="TriggerFileUpload">
+                            Upload File
+                        </button>
+
+                        <InputFile @ref="fileInput"
+                                   OnChange="UploadFile"
+                                   accept=".xlsx"
+                                   class="hidden" />
+                    </div>
+                }
+            </div>
+            <!-- Invisible backdrop to close dropdown when clicking outside -->
+            @if (showDropdown)
+            {
+                <div @onclick="() => showDropdown = false"
+                     style="position: fixed; inset: 0; z-index: 40;">
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Loading / Empty States -->
+    @if (isLoading)
+    {
+        <div class="flex flex-col items-center justify-center py-16">
+            <div class="animate-spin h-12 w-12 border-b-2 border-[#052767] rounded-full"></div>
+            <p class="mt-4 text-gray-500">Loading personnels...</p>
+        </div>
+    }
+    else if (!FilteredPersonnels.Any())
+    {
+        <div class="bg-white rounded-xl shadow-sm border p-6">
+            <h4 class="text-lg font-semibold text-gray-700">No Personnels Found</h4>
+            <p class="text-gray-500 text-xs mt-1">There are currently no personnels in the system.</p>
+        </div>
+    }
+    else
+    {
+        <!-- Table -->
+        <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="bg-gradient-to-r from-[rgb(5,39,103)] to-[rgb(3,30,80)] text-white">
+                        <th class="px-4 py-3">Name</th>
+                        <th class="px-4 py-3">Position</th>
+                        <th class="px-4 py-3">Office</th>
+                        <th class="px-4 py-3">Email</th>                        
+                        <th class="px-4 py-3 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y">
+                    @foreach (var personnel in PaginatedPersonnels)
+                    {
+                        <tr class="hover:bg-gray-100 transition cursor-pointer" @onclick="() => OpenViewMode(personnel)">
+                            <td class="px-4 py-3">
+                                <div class="font-semibold">@personnel.FullName</div>
+                                <div class="text-xs text-gray-500">@personnel.ContactNumber</div>
+                            </td>
+                            <td class="px-4 py-3">@personnel.PositionName</td>
+                            <td class="px-4 py-3">@personnel.OfficeName</td>
+                            <td class="px-4 py-3">@personnel.EmailAddress</td>
+                            <td class="px-4 py-3 flex justify-center gap-2" @onclick:stopPropagation>
+                                <button class="px-3 py-1 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition duration-150 shadow-sm"
+                                        @onclick="() => OpenEditModal(personnel)"
+                                        @onclick:stopPropagation
+                                        hidden="@(SessionData.CurrentUserId == personnel.PersonnelId)">
+                                    Edit
+                                </button>
+                                <button class="px-3 py-1 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition duration-150 shadow-sm"
+                                        @onclick="() => ConfirmDeletePersonnel(personnel)"
+                                        @onclick:stopPropagation
+                                        hidden="@(SessionData.CurrentUserId == personnel.PersonnelId)">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <!-- Pagination -->
+            <Pagination TotalItems="FilteredPersonnels.Count"
+                        ItemsLabel="Personnel Counts"
+                        ItemsPerPage="itemsPerPage"
+                        CurrentPage="currentPage"
+                        OnPageChanged="HandlePageChanged" />
+        </div>
+    }
+</div>
+
+<!-- Add / Edit / View Personnel Modal -->
+@if (showCreateModal)
+{
+    <div class="fixed inset-0 z-[9999] flex items-center justify-center backdrop-blur-md"
+         @onclick="CloseCreateModal">
+        <div class="bg-white/70 backdrop-blur-md rounded-xl shadow-2xl w-11/12 max-w-3xl max-h-[90vh] overflow-hidden flex flex-col border border-white/30"
+             @onclick:stopPropagation>
+
+            <!-- HEADER -->
+            <div class="px-6 py-2 bg-gradient-to-r from-[#052767] to-[#031e50] flex justify-between items-center text-white rounded-t-xl">
+                <h2 class="text-sm font-semibold flex items-center gap-2">
+                    @* <span>
+                        @(formMode == FormMode.Create ? "➕" :
+                          formMode == FormMode.Edit ? "✏️" : "👁️")
+                    </span> *@
+                    @GetModalTitle()
+                </h2>
+
+                <button class="text-lg font-semibold hover:text-gray-200 flex items-center justify-center w-7 h-7 rounded hover:bg-white/10 transition"
+                        @onclick="CloseCreateModal">
+                    ✕
+                </button>
+            </div>
+
+            <!-- BODY -->
+            <div class="p-4 overflow-y-auto flex-1 space-y-3">
+
+                <!-- BASIC INFO CARD -->
+                <div class="bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-sm border border-white/30">
+                    <h3 class="text-xs font-semibold text-gray-700 mb-2">Basic Information</h3>
+                    <div class="grid grid-cols-4 gap-3">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">
+                                Employee ID
+                                @if (formMode != FormMode.View)
+                                {
+                                    <span class="text-red-600">*</span>
+                                }
+                            </label>
+                            <input type="text" class="w-full border rounded-md px-2 py-1 text-sm @(formMode == FormMode.View ? "bg-gray-100 cursor-not-allowed" : "")"
+                                   @bind="editingPersonnel.EmployeeID" placeholder="Enter employee ID" disabled="@(formMode == FormMode.View)" />
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">
+                                First Name
+                                @if (formMode != FormMode.View)
+                                {
+                                    <span class="text-red-600">*</span>
+                                }
+                            </label>
+                            <input type="text" class="w-full border rounded-md px-2 py-1 text-sm @(formMode == FormMode.View ? "bg-gray-100 cursor-not-allowed" : "")"
+                                   @bind="editingPersonnel.FirstName" placeholder="Enter first name" disabled="@(formMode == FormMode.View)" />
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Middle Name</label>
+                            <input type="text" class="w-full border rounded-md px-2 py-1 text-sm @(formMode == FormMode.View ? "bg-gray-100 cursor-not-allowed" : "")"
+                                   @bind="editingPersonnel.MiddleName" placeholder="Enter middle name" disabled="@(formMode == FormMode.View)" />
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">
+                                Last Name
+                                @if (formMode != FormMode.View)
+                                {
+                                    <span class="text-red-600">*</span>
+                                }
+                            </label>
+                            <input type="text" class="w-full border rounded-md px-2 py-1 text-sm @(formMode == FormMode.View ? "bg-gray-100 cursor-not-allowed" : "")"
+                                   @bind="editingPersonnel.LastName" placeholder="Enter last name" disabled="@(formMode == FormMode.View)" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EMPLOYMENT INFO CARD -->
+                <div class="bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-sm border border-white/30">
+                    <h3 class="text-xs font-semibold text-gray-700 mb-2">Employment Details</h3>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">
+                                Position
+                                @if (formMode != FormMode.View)
+                                {
+                                    <span class="text-red-600">*</span>
+                                }
+                            </label>
+                            <select class="w-full border rounded-md px-2 py-1 text-sm @(formMode == FormMode.View || formMode == FormMode.Edit ? "bg-gray-100 cursor-not-allowed" : "")"
+                                    @bind="selectedPositionId" disabled="@(formMode == FormMode.View || formMode == FormMode.Edit)">
+                                <option value="">Select Position</option>
+                                @foreach (var position in positions)
+                                {
+                                    <option value="@position.PositionId">@position.PositionName</option>
+                                }
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">
+                                Office
+                                @if (formMode != FormMode.View)
+                                {
+                                    <span class="text-red-600">*</span>
+                                }
+                            </label>
+                            <select class="w-full border rounded-md px-2 py-1 text-sm @(formMode == FormMode.View || formMode == FormMode.Edit ? "bg-gray-100 cursor-not-allowed" : "")"
+                                    @bind="selectedOfficeId" disabled="@(formMode == FormMode.View || formMode == FormMode.Edit)">
+                                <option value="">Select Office</option>
+                                @foreach (var office in offices)
+                                {
+                                    <option value="@office.OfficeId">@office.OfficeName</option>
+                                }
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">
+                                Hire Date
+                                @if (formMode != FormMode.View)
+                                {
+                                    <span class="text-red-600">*</span>
+                                }
+                            </label>
+                            <input type="date" class="w-full border rounded-md px-2 py-1 text-sm @(formMode == FormMode.View ? "bg-gray-100 cursor-not-allowed" : "")"
+                                   @bind="editingPersonnel.HiredDate" disabled="@(formMode == FormMode.View)" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONTACT INFO CARD -->
+                <div class="bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-sm border border-white/30">
+                    <h3 class="text-xs font-semibold text-gray-700 mb-2">Contact Information</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">
+                                Email Address
+                                @if (formMode != FormMode.View)
+                                {
+                                    <span class="text-red-600">*</span>
+                                }
+                            </label>
+                            <input type="email" class="w-full border rounded-md px-2 py-1 text-sm @(formMode == FormMode.View ? "bg-gray-100 cursor-not-allowed" : "") @(editingPersonnel.EmailAddress != null && !IsValidEmailFormat(editingPersonnel.EmailAddress) && !string.IsNullOrWhiteSpace(editingPersonnel.EmailAddress) && formMode != FormMode.View ? "border-red-500" : "")"
+                                   @bind="editingPersonnel.EmailAddress" placeholder="Enter email address" disabled="@(formMode == FormMode.View)" />
+                            @if (editingPersonnel.EmailAddress != null && !IsValidEmailFormat(editingPersonnel.EmailAddress) && !string.IsNullOrWhiteSpace(editingPersonnel.EmailAddress) && formMode != FormMode.View)
+                            {
+                                <p class="text-xs text-red-600 mt-1">Email must end with @@deped.gov.ph</p>
+                            }
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Contact Number</label>
+                            <input type="text" class="w-full border rounded-md px-2 py-1 text-sm @(formMode == FormMode.View ? "bg-gray-100 cursor-not-allowed" : "")"
+                                   @bind="editingPersonnel.ContactNumber" placeholder="Enter contact number" disabled="@(formMode == FormMode.View)" />
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- FOOTER -->
+            <div class="flex justify-end gap-3 border-t border-white/30 px-6 py-4 bg-white/50">
+                <button class="px-4 py-2 border rounded-md hover:bg-gray-100/50" @onclick="CloseCreateModal">@(formMode == FormMode.View ? "Close" : "Cancel")</button>
+                
+                @if (formMode == FormMode.View)
+                {
+                    <button class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                            @onclick="SwitchToEditMode"
+                            hidden="@(SessionData.CurrentUserId == editingPersonnel.PersonnelId)">
+                        Edit
+                    </button>
+                }
+                else
+                {
+                    <button class="px-4 py-2 bg-[#052767] text-white rounded-md hover:bg-[#041e52] text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            @onclick="SavePersonnel"
+                            disabled="@(!IsFormValid())">
+                        Save Personnel
+                    </button>
+                }
+            </div>
+
+        </div>
+    </div>
+}
+<!-- Delete Confirmation Modal -->
+@if (showDeleteModal && deletingPersonnel != null)
+{
+    <div class="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm"
+         @onclick="CancelDelete">
+        <div class="bg-white rounded-xl shadow-2xl w-11/12 max-w-md overflow-hidden flex flex-col"
+             @onclick:stopPropagation>
+            <div class="px-4 py-3 bg-red-600 flex justify-between items-center text-white">
+                <h2 class="text-lg font-semibold">Confirm Delete</h2>
+                <button class="text-xl hover:text-gray-200" @onclick="CancelDelete">✕</button>
+            </div>
+            <div class="p-4 bg-gray-50">
+                <p class="text-gray-700 text-sm">
+                    Are you sure you want to delete personnel
+                    <span class="font-semibold">@deletingPersonnel.FullName</span>?
+                </p>
+            </div>
+            <div class="flex justify-end gap-3 border-t px-5 py-4 bg-gray-50">
+                <button class="px-4 py-2 border rounded-md hover:bg-gray-100" @onclick="CancelDelete">Cancel</button>
+                <button class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700" @onclick="DeletePersonnelConfirmed">
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Download Success Modal -->
+@if (showDownloadSuccess)
+{
+    <div class="fixed inset-0 z-[10000] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+        <div class="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg text-sm pointer-events-auto">
+            @downloadMessage
+        </div>
+    </div>
+}
+
+@if (showUploadModal && uploadSummary != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md"
+         @onclick="() => showUploadModal = false">
+
+        <div class="bg-white/70 backdrop-blur-md rounded-xl shadow-2xl w-11/12 max-w-4xl h-[85vh] overflow-hidden flex flex-col border border-white/30"
+             @onclick:stopPropagation>
+
+            <!-- HEADER -->
+            <div class="px-6 py-2 bg-gradient-to-r from-[#052767] to-[#031e50] flex justify-between items-center text-white rounded-t-xl">
+                <h2 class="text-base font-semibold leading-none">Upload Result</h2>
+                <button class="text-lg font-semibold hover:text-gray-200 flex items-center justify-center leading-none w-6 h-6"
+                        @onclick="() => showUploadModal = false">
+                    ✕
+                </button>
+            </div>
+
+            <!-- BODY -->
+            <div class="p-6 flex-1 flex flex-col gap-4 min-h-0">
+
+                <!-- SUMMARY CARD -->
+                <div class="bg-white/80 backdrop-blur-sm p-4 rounded-lg shadow-sm border border-white/30">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <span class="text-xs font-semibold text-gray-600 block uppercase mb-1">Successfully Imported</span>
+                            <p class="text-2xl font-bold text-green-600 leading-none">
+                                @uploadSummary.SuccessCount
+                                <span class="text-xs font-normal text-gray-500 ml-1">records</span>
+                            </p>
+                        </div>
+                        <div>
+                            <span class="text-xs font-semibold text-gray-600 block uppercase mb-1">Rows with Errors</span>
+                            <p class="text-2xl font-bold text-red-600 leading-none">
+                                @uploadSummary.ErrorCount
+                                <span class="text-xs font-normal text-gray-500 ml-1">records</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TABS -->
+                <div class="flex gap-1 border-b border-gray-200">
+                    @foreach (var tab in new[] {
+                        ("missing", "Missing Fields",  uploadSummary.MissingFields.Count),
+                        ("email",   "Invalid Email",   uploadSummary.InvalidEmails.Count),
+                        ("date",    "Invalid Date",    uploadSummary.InvalidDates.Count),
+                        ("ref",     "References",      uploadSummary.InvalidReferences.Count),
+                        ("dup",     "Duplicates",      uploadSummary.Duplicates.Count)
+                    })
+                    {
+                        <button class="px-3 py-2 text-xs font-medium transition-colors @(activeTab == tab.Item1 ? "border-b-2 border-[#052767] text-[#052767]" : "text-gray-500 hover:text-gray-700")"
+                                @onclick="() => { activeTab = tab.Item1; modalCurrentPage = 1; }">
+                            @tab.Item2
+                            <span class="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold @(activeTab == tab.Item1 ? "bg-[#052767] text-white" : "bg-gray-100 text-gray-600")">
+                                @tab.Item3
+                            </span>
+                        </button>
+                    }
+                </div>
+
+                <!-- TAB CONTENT -->
+                <div class="bg-white/80 backdrop-blur-sm rounded-lg shadow-sm border border-white/30 overflow-hidden flex flex-col">
+                    <div class="overflow-y-auto" style="height: 280px;">
+                        <table class="w-full text-xs">
+                            <thead class="sticky top-0">
+                                <tr class="bg-gradient-to-r from-[rgb(5,39,103)] to-[rgb(3,30,80)] text-white">
+                                    <th class="px-4 py-3 text-left">Employee</th>
+                                    @if (activeTab == "missing")
+                                    {
+                                        <th class="px-4 py-3 text-left">Row</th>
+                                        <th class="px-4 py-3 text-left">Missing Field</th>
+                                    }
+                                    else
+                                    {
+                                        <th class="px-4 py-3 text-left">Row / Field</th>
+                                    }
+                                    <th class="px-4 py-3 text-left">Error</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y">
+                                @{
+                                    IEnumerable<ExcelRowError>? rows = activeTab switch
+                                    {
+                                        "missing" => uploadSummary.MissingFields,
+                                        "email" => InvalidEmailsPaged,
+                                        "date" => InvalidDatesPaged,
+                                        "ref" => InvalidReferencesPaged,
+                                        "dup" => DuplicatesPaged,
+                                        _ => null
+                                    };
+                                }
+                                @if (rows?.Any() == true)
+                                {
+                                    @foreach (var err in rows)
+                                    {
+                                        <tr class="hover:bg-gray-50 transition">
+                                            <td class="px-4 py-3 font-semibold">@err.EmployeeID – @err.FullName</td>
+                                            @if (activeTab == "missing")
+                                            {
+                                                <td class="px-4 py-3">@err.RowNumber</td>
+                                                <td class="px-4 py-3">@err.Column</td>
+                                            }
+                                            else
+                                            {
+                                                <td class="px-4 py-3">@err.RowNumber – @err.Column</td>
+                                            }
+                                            <td class="px-4 py-3 text-red-600">@err.Message</td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="4" class="px-4 py-8 text-center text-gray-400 italic text-xs">No errors found.</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @{
+                        var (paginatedTotal, paginatedLabel) = activeTab switch
+                        {
+                            "email" => (uploadSummary?.InvalidEmails?.Count ?? 0, "Invalid Emails"),
+                            "date" => (uploadSummary?.InvalidDates?.Count ?? 0, "Invalid Dates"),
+                            "ref" => (uploadSummary?.InvalidReferences?.Count ?? 0, "Invalid References"),
+                            "dup" => (uploadSummary?.Duplicates?.Count ?? 0, "Duplicates"),
+                            _ => (0, "")
+                        };
+                    }
+                    @if (paginatedTotal > 0)
+                    {
+                        <Pagination TotalItems="paginatedTotal"
+                                    ItemsLabel="@paginatedLabel"
+                                    ItemsPerPage="modalItemsPerPage"
+                                    CurrentPage="modalCurrentPage"
+                                    OnPageChanged="ModalHandlePageChanged" />
+                    }
+                </div>
+
+            </div>
+
+            <!-- FOOTER -->
+            <div class="flex justify-end border-t border-gray-200 px-6 py-4 bg-white/50">
+                <button class="px-4 py-2 bg-[#052767] text-white rounded-md hover:bg-[#041e52] text-xs font-medium"
+                        @onclick="() => showUploadModal = false">
+                    Close
+                </button>
+            </div>
+
+        </div>
+    </div>
+}
+@code {
+    #nullable enable
+
+    // DTO for deserializing ExcelImportResult from API response
+    private class ExcelImportResultDto
+    {
+        public List<PersonnelDto>? Data { get; set; } = new();
+        public List<ExcelRowErrorDto>? Errors { get; set; } = new();
+        public bool HasErrors => Errors?.Any() == true;
+    }
+
+    private class ExcelRowErrorDto
+    {
+        public int RowNumber { get; set; }
+        public string Column { get; set; } = "";
+        public string Message { get; set; } = "";
+    }
+
+    private List<PersonnelDto> personnels { get; set; } = new();
+    private List<PositionDto> positions = new();
+    private List<OfficeDto> offices = new();
+
+    private PersonnelDto editingPersonnel = new();
+    private PersonnelDto? deletingPersonnel = null;
+
+    // Temporary binding properties for nullable dropdowns
+    private int? selectedPositionId = null;
+    private int? selectedOfficeId = null;
+
+    private bool showDownloadSuccess = false;
+    private string downloadMessage = "";
+    private bool showDropdown = false;
+
+    private bool isLoading = false;
+    private bool showCreateModal = false;
+    private bool showDeleteModal = false;
+
+    private enum FormMode { View, Create, Edit }
+    private FormMode formMode = FormMode.View;
+
+    private string _searchTerm = "";
+    private int currentPage = 1;
+    private int itemsPerPage = 8;
+    private bool isSaving = false;
+    private InputFile? fileInput;
+
+    private int modalCurrentPage = 1;
+    private int modalItemsPerPage = 5;
+
+    private ExcelUploadSummary uploadSummary = new();
+    private bool showUploadModal = false;
+    private string activeTab = "missing";
+
+    private async Task TriggerFileUpload()
+    {
+        if (fileInput?.Element != null)
+        {
+            await JS.InvokeVoidAsync("triggerClick", fileInput.Element);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+
+        await LoadPersonnels();
+
+        positions = await Http.GetFromJsonAsync<List<PositionDto>>("api/positions") ?? new();
+        offices = await Http.GetFromJsonAsync<List<OfficeDto>>("api/offices") ?? new();
+
+        isLoading = false;
+    }
+
+    // ================= LOAD =================
+    private async Task LoadPersonnels()
+    {
+        try
+        {
+            isLoading = true;
+
+            var result = await Http.GetFromJsonAsync<List<PersonnelDto>>("api/personnels");
+
+            personnels = result ?? new List<PersonnelDto>();
+        }
+        catch (Exception ex)
+        {
+            ShowMessage($"Failed to load personnels: {ex.Message}");
+            personnels = new List<PersonnelDto>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    // ================= SEARCH =================
+    private void HandleSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+            _searchTerm = "";
+    }
+
+    private string searchTerm
+    {
+        get => _searchTerm;
+        set
+        {
+            _searchTerm = value;
+            currentPage = 1;
+        }
+    }
+
+    private string GetModalTitle()
+    {
+        return formMode switch
+        {
+            FormMode.Create => "Add Personnel",
+            FormMode.Edit => "Edit Personnel",
+            _ => "Personnel Information"
+        };
+    }
+
+    private void SwitchToEditMode()
+    {
+        if (editingPersonnel == null)
+            return;
+
+        formMode = FormMode.Edit;
+    }
+
+    private List<PersonnelDto> FilteredPersonnels =>
+        string.IsNullOrWhiteSpace(searchTerm)
+            ? personnels
+            : personnels.Where(p =>
+                (p.FullName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (p.PositionName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false))
+            .ToList();
+
+    private List<PersonnelDto> PaginatedPersonnels =>
+        FilteredPersonnels.Skip((currentPage - 1) * itemsPerPage)
+                          .Take(itemsPerPage)
+                          .ToList();
+    
+    private List<ExcelRowError> InvalidEmailsPaged =>
+        uploadSummary?.InvalidEmails?
+            .Skip((modalCurrentPage - 1) * modalItemsPerPage)
+            .Take(modalItemsPerPage)
+            .ToList() ?? new();
+
+    private List<ExcelRowError> InvalidDatesPaged =>
+        uploadSummary?.InvalidDates?
+            .Skip((modalCurrentPage - 1) * modalItemsPerPage)
+            .Take(modalItemsPerPage)
+            .ToList() ?? new();
+
+    private List<ExcelRowError> InvalidReferencesPaged =>
+    uploadSummary?.InvalidReferences?
+        .Skip((modalCurrentPage - 1) * modalItemsPerPage)
+        .Take(modalItemsPerPage)
+        .ToList() ?? new();
+    
+    private List<ExcelRowError> DuplicatesPaged =>
+        uploadSummary?.Duplicates?
+            .Skip((modalCurrentPage - 1) * modalItemsPerPage)
+            .Take(modalItemsPerPage)
+            .ToList() ?? new();
+
+    // ================= CREATE =================
+    private void OpenCreateModal()
+    {
+        editingPersonnel = new PersonnelDto();
+        selectedPositionId = null;
+        selectedOfficeId = null;
+        formMode = FormMode.Create;
+        showCreateModal = true;
+    }
+
+    private void OpenEditModal(PersonnelDto personnel)
+    {
+        editingPersonnel = personnel;
+        selectedPositionId = personnel.PositionId;
+        selectedOfficeId = personnel.OfficeId;
+        formMode = FormMode.Edit;
+        showCreateModal = true;
+    }
+
+    private void OpenViewMode(PersonnelDto personnel)
+    {
+        editingPersonnel = personnel;
+        selectedPositionId = personnel.PositionId;
+        selectedOfficeId = personnel.OfficeId;
+        formMode = FormMode.View;
+        showCreateModal = true;
+    }
+
+    private void CloseCreateModal()
+    {
+        showCreateModal = false;
+        editingPersonnel = new();
+        selectedPositionId = null;
+        selectedOfficeId = null;
+    }
+
+    // ================= SAVE (CRUD FIXED) =================
+    private async Task SavePersonnel()
+    {
+        if (isSaving) return;
+
+        try
+        {
+            isSaving = true;
+
+            // Sync selected values to personnel object
+            editingPersonnel.PositionId = selectedPositionId;
+            editingPersonnel.OfficeId = selectedOfficeId;
+
+            HttpResponseMessage response;
+
+            if (editingPersonnel.PersonnelId == 0)
+            {
+                response = await Http.PostAsJsonAsync("api/personnels", editingPersonnel);
+            }
+            else
+            {
+                response = await Http.PutAsJsonAsync(
+                    $"api/personnels/{editingPersonnel.PersonnelId}",
+                    editingPersonnel);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadPersonnels();
+                CloseCreateModal();
+                ShowMessage("Personnel saved successfully.");
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                ShowMessage($"Failed: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowMessage($"Error: {ex.Message}");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    // ================= DELETE =================
+    private void ConfirmDeletePersonnel(PersonnelDto personnel)
+    {
+        deletingPersonnel = personnel;
+        showDeleteModal = true;
+    }
+
+    private void CancelDelete()
+    {
+        deletingPersonnel = null;
+        showDeleteModal = false;
+    }
+
+    private async Task DeletePersonnelConfirmed()
+    {
+        if (deletingPersonnel == null) return;
+
+        try
+        {
+            await Http.DeleteAsync($"api/personnels/{deletingPersonnel.PersonnelId}");
+            personnels.Remove(deletingPersonnel);
+            CancelDelete();
+        }
+        catch (Exception ex)
+        {
+            ShowMessage(ex.Message);
+        }
+    }
+
+    // ================= PAGINATION =================
+    private void HandlePageChanged(int page)
+    {
+        currentPage = page;
+    }
+
+    private void ModalHandlePageChanged(int page)
+    {
+        modalCurrentPage = page;
+    }
+
+    // ================= VALIDATION =================
+    private bool IsFormValid()
+    {
+        return !string.IsNullOrWhiteSpace(editingPersonnel.EmployeeID)
+            && !string.IsNullOrWhiteSpace(editingPersonnel.FirstName)
+            && !string.IsNullOrWhiteSpace(editingPersonnel.LastName)
+            && editingPersonnel.PositionId != 0
+            && editingPersonnel.OfficeId != 0
+            && !string.IsNullOrWhiteSpace(editingPersonnel.EmailAddress)
+            && editingPersonnel.HiredDate.HasValue;
+    }
+
+    private bool IsValidEmailFormat(string? email)
+        => email?.EndsWith("@deped.gov.ph", StringComparison.OrdinalIgnoreCase) == true;
+
+    // ================= DOWNLOAD TEMPLATE (BLAZOR WASM FIX) =================
+    private async Task DownloadTemplate(string moduleName)
+    {
+        try
+        {
+            var endpoint = $"api/excel/template/{moduleName.ToLower()}";
+
+            var response = await Http.GetAsync(endpoint);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                ShowMessage($"Download failed ({response.StatusCode}): {errorContent}");
+                return;
+            }
+
+            var file = await response.Content.ReadAsByteArrayAsync();
+
+            var fileName = $"{moduleName}Template.xlsx";
+
+            // Use JS interop to trigger browser download
+            await JS.InvokeVoidAsync("downloadFile", file, fileName);
+
+            ShowMessage($"{moduleName} template downloaded successfully.");
+        }
+        catch (Exception ex)
+        {
+            ShowMessage($"Failed to download {moduleName} template: {ex.Message}");
+        }
+    }
+
+    private async Task UploadFile(InputFileChangeEventArgs e)
+    {
+        if (e.File == null)
+        {
+            ShowMessage("Please select a file.");
+            return;
+        }
+
+        if (!e.File.Name.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+        {
+            ShowMessage("Only .xlsx files are supported.");
+            return;
+        }
+
+        const long maxFileSize = 5 * 1024 * 1024;
+
+        if (e.File.Size > maxFileSize)
+        {
+            ShowMessage("File too large (max 5MB).");
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+            StateHasChanged();
+
+            using var stream = e.File.OpenReadStream(maxFileSize);
+
+            var content = new MultipartFormDataContent();
+
+            var fileContent = new StreamContent(stream);
+            fileContent.Headers.ContentType =
+                new System.Net.Http.Headers.MediaTypeHeaderValue(
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+
+            content.Add(fileContent, "file", e.File.Name);
+
+            var response = await Http.PostAsync("api/personnels/upload", content);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                ShowMessage($"Upload failed: {error}");
+                return;
+            }
+
+            // ✅ READ NEW RESPONSE TYPE
+            uploadSummary = await response.Content.ReadFromJsonAsync<ExcelUploadSummary>()
+    ?? new ExcelUploadSummary();
+
+            if (uploadSummary == null)
+            {
+                ShowMessage("Upload completed but no data returned.");
+                return;
+            }
+
+            // ✅ Refresh list (valid records already saved)
+            await LoadPersonnels();
+
+            // ✅ SHOW RESULT
+            if (uploadSummary.ErrorCount > 0)
+            {
+                showUploadModal = true; // 🔥 trigger modal with tabs
+            }
+            else
+            {
+                ShowMessage($"✓ Success! {uploadSummary.SuccessCount} records imported.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+            ShowMessage($"Error: {ex.Message}");
+        }
+        finally
+        {
+            isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private RenderFragment<List<ExcelRowError>> RenderErrors(List<ExcelRowError> errors) => list => builder =>
+    {
+        if (list == null || !list.Any())
+        {
+            builder.AddContent(0, "No records found.");
+            return;
+        }
+
+        int seq = 0;
+
+        foreach (var err in list)
+        {
+            builder.OpenElement(seq++, "div");
+            builder.AddAttribute(seq++, "class", "border-b py-2 text-sm");
+
+            builder.AddContent(seq++,
+                $"Row {err.RowNumber} | {err.EmployeeID} | {err.FullName} → {err.Column}: {err.Message}");
+
+            builder.CloseElement();
+        }
+    };
+
+    // ================= MESSAGE =================
+    private async void ShowMessage(string msg)
+    {
+        downloadMessage = msg;
+        showDownloadSuccess = true;
+        StateHasChanged();
+
+        await Task.Delay(4000);
+
+        showDownloadSuccess = false;
+        StateHasChanged();
+    }
+}

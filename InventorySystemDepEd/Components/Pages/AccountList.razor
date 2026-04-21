@@ -1,0 +1,544 @@
+﻿@page "/account-list"
+@layout MainLayout
+@using InventorySystemDepEd.Shared.DTOs
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Account List - Accounting - DepEd Lapu-Lapu Division</PageTitle>
+
+<div class="p-6 bg-gray-50 min-h-screen">
+
+    <!-- HEADER -->
+    <div class="flex justify-between items-end pb-4 mb-5 border-b border-gray-200">
+        <div>
+            <h1 class="text-lg font-bold text-[rgb(5,39,103)] tracking-tight mb-0.5">Accounts</h1>
+            <p class="text-xs text-gray-400">Manage the list of accounting records.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <input type="text"
+                   placeholder="Search accounts..."
+                   class="border border-gray-300 rounded-lg px-4 py-2 text-xs"
+                   @bind="searchTerm"
+                   @bind:event="oninput"
+                   @onkeydown="HandleSearchKeyDown" />
+
+            <button class="bg-[#052767] hover:bg-[#041e52] text-white px-4 py-2 rounded-lg text-xs"
+                    @onclick="OpenCreateModal">
+                + Create Account
+            </button>
+
+            <!-- Excel Dropdown -->
+            <div class="relative">
+                <button class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-1"
+                        @onclick="() => showDropdown = !showDropdown"
+                        @onclick:stopPropagation>
+                    Excel Actions <span class="ml-1">▼</span>
+                </button>
+
+                @if (showDropdown)
+                {
+                    <div class="absolute right-0 mt-1 w-48 bg-white border rounded-md shadow-lg z-50" @onclick:stopPropagation>
+                        <button class="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                                @onclick='() => DownloadTemplate("Account")'>
+                            Download Template
+                        </button>
+                        <button class="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                                @onclick="TriggerFileUpload">
+                            Upload File
+                        </button>
+
+                        <InputFile @ref="fileInput"
+                                   OnChange="UploadFile"
+                                   accept=".xlsx"
+                                   class="hidden" />
+                    </div>
+                }
+            </div>
+
+            <!-- Invisible backdrop to close dropdown when clicking outside -->
+            @if (showDropdown)
+            {
+                <div @onclick="() => showDropdown = false"
+                     style="position: fixed; inset: 0; z-index: 40;">
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="flex justify-center py-16">
+            <div class="animate-spin h-10 w-10 border-b-2 border-[#052767] rounded-full"></div>
+        </div>
+    }
+    else if (FilteredAccounts.Count == 0)
+    {
+        <div class="bg-white rounded-xl shadow-sm border p-6">
+            <h4 class="text-lg font-semibold text-gray-700">No Accounts Found</h4>
+        </div>
+    }
+    else
+    {
+        <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="bg-gradient-to-r from-[rgb(5,39,103)] to-[rgb(3,30,80)] text-white">
+                        <th class="px-4 py-3 text-center">Account Code</th>
+                        <th class="px-4 py-3">Title</th>
+                        <th class="px-4 py-3 text-center">Date Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var account in PaginatedAccounts)
+                    {
+                        <tr class="border-t border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
+                            @onclick="() => ViewDetails(account.Id)">
+                            <td class="px-4 py-3 text-center text-[#052767] font-medium">@account.AccountCode</td>
+                            <td class="px-4 py-3 text-gray-700">
+                                @account.Title
+                                @if (!string.IsNullOrWhiteSpace(account.Description))
+                                {
+                                    <br />
+                                    <span class="text-gray-400">@account.Description</span>
+                                }
+                            </td>
+                            <td class="px-4 py-3 text-center text-gray-500">@account.DateCreated?.ToString("MMMM dd, yyyy")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <Pagination TotalItems="FilteredAccounts.Count"
+                        ItemsLabel="Total Accounts"
+                        ItemsPerPage="itemsPerPage"
+                        CurrentPage="currentPage"
+                        OnPageChanged="HandlePageChanged" />
+        </div>
+    }
+</div>
+
+<!-- Create Account Modal -->
+@if (showCreateModal)
+{
+    <div class="fixed inset-0 z-[9999] flex items-center justify-center backdrop-blur-md"
+         @onclick="CloseCreateModal">
+        <div class="bg-white/70 backdrop-blur-md rounded-xl shadow-2xl w-11/12 max-w-3xl max-h-[90vh] overflow-hidden flex flex-col border border-white/30"
+             @onclick:stopPropagation>
+
+            <!-- Header -->
+            <div class="px-6 py-2 bg-gradient-to-r from-[#052767] to-[#031e50] flex justify-between items-center text-white rounded-t-xl">
+                <h2 class="text-sm font-semibold">Create New Account</h2>
+                <button class="text-lg font-semibold hover:text-gray-200 flex items-center justify-center w-7 h-7 rounded hover:bg-white/10 transition"
+                        @onclick="CloseCreateModal">
+                    ✕
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-4 overflow-y-auto flex-1 space-y-3">
+
+                <!-- Account Details Card -->
+                <div class="bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-sm border border-white/30">
+                    <h3 class="text-xs font-semibold text-gray-700 mb-2">Account Details</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">
+                                Account Title <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text"
+                                   class="w-full border rounded-md px-2 py-1 text-sm"
+                                   @bind="newAccountTitle"
+                                   placeholder="Enter account title" />
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Description</label>
+                            <textarea class="w-full border rounded-md px-2 py-1 text-sm"
+                                      rows="3"
+                                      @bind="newAccountDescription"
+                                      placeholder="Enter account description"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Code Details Card -->
+                <div class="bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-sm border border-white/30">
+                    <h3 class="text-xs font-semibold text-gray-700 mb-2">Code Details</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">
+                                RCA Code <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text"
+                                   class="w-full border rounded-md px-2 py-1 text-sm"
+                                   @bind="targetRCACode"
+                                   placeholder="12345678" />
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">
+                                UACS Code <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text"
+                                   class="w-full border rounded-md px-2 py-1 text-sm"
+                                   @bind="targetUACSCode"
+                                   placeholder="5010101" />
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div class="flex justify-end gap-3 border-t border-white/30 px-6 py-4 bg-white/50">
+                <button class="px-4 py-2 border rounded-md hover:bg-gray-100/50 text-sm"
+                        @onclick="CloseCreateModal">
+                    Cancel
+                </button>
+                <button class="px-4 py-2 bg-[#052767] text-white rounded-md hover:bg-[#041e52] text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        @onclick="SaveAccount"
+                        disabled="@(!IsValidAccount())">
+                    Create Account
+                </button>
+            </div>
+
+        </div>
+    </div>
+}
+<!-- View Details Modal -->
+@if (selectedAccount != null)
+{
+    <div class="fixed inset-0 z-[9999] flex items-center justify-center backdrop-blur-md"
+         @onclick="CloseModal">
+        <div class="bg-white/70 backdrop-blur-md rounded-xl shadow-2xl w-11/12 max-w-3xl max-h-[90vh] overflow-hidden flex flex-col border border-white/30"
+             @onclick:stopPropagation>
+
+            <!-- Header -->
+            <div class="px-6 py-2 bg-gradient-to-r from-[#052767] to-[#031e50] flex justify-between items-center text-white rounded-t-xl">
+                <h2 class="text-sm font-semibold">Account Details</h2>
+                <button class="text-lg font-semibold hover:text-gray-200 flex items-center justify-center w-7 h-7 rounded hover:bg-white/10 transition"
+                        @onclick="CloseModal">
+                    ✕
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-4 overflow-y-auto flex-1 space-y-3">
+
+                <!-- Basic Info Card -->
+                <div class="bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-sm border border-white/30">
+                    <h3 class="text-xs font-semibold text-gray-700 mb-2">Account Information</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Account Code</label>
+                            <p class="text-sm text-[#052767] font-medium">@selectedAccount.AccountCode</p>
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Account Type</label>
+                            <p class="text-sm text-gray-800">@selectedAccount.UnitType</p>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="text-xs font-semibold text-gray-600">Title</label>
+                            <p class="text-sm text-gray-800">@selectedAccount.Title</p>
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Date Created</label>
+                            <p class="text-sm text-gray-800">@selectedAccount.DateCreated?.ToString("MMMM dd, yyyy")</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Code Details Card -->
+                <div class="bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-sm border border-white/30">
+                    <h3 class="text-xs font-semibold text-gray-700 mb-2">Code Details</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">RCA Code</label>
+                            <p class="text-sm text-gray-800">@selectedAccount.RcaCode</p>
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">UACS Code</label>
+                            <p class="text-sm text-gray-800">@selectedAccount.UacsCode</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Description Card -->
+                <div class="bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-sm border border-white/30">
+                    <h3 class="text-xs font-semibold text-gray-700 mb-2">Description</h3>
+                    <p class="text-sm text-gray-700">
+                        @(string.IsNullOrWhiteSpace(selectedAccount.Description) ? "No description provided." : selectedAccount.Description)
+                    </p>
+                </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div class="flex justify-end gap-3 border-t border-white/30 px-6 py-4 bg-white/50">
+                <button class="px-4 py-2 border rounded-md hover:bg-gray-100/50 text-sm"
+                        @onclick="CloseModal">
+                    Close
+                </button>
+            </div>
+
+        </div>
+    </div>
+}
+
+<!-- Download Success Modal -->
+@if (showDownloadSuccess)
+{
+    <div class="fixed inset-0 z-[10000] flex items-center justify-center pointer-events-none">
+        <div class="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg text-sm pointer-events-auto">
+            @downloadMessage
+        </div>
+    </div>
+}
+
+@code {
+#nullable enable
+
+    public class AccountingRecord
+    {
+        public int Id { get; set; }
+        public string? Title { get; set; }
+        public string? Description { get; set; }
+        public string? AccountCode { get; set; }
+        public string? RcaCode { get; set; }
+        public string? UacsCode { get; set; }
+        public string? UnitType { get; set; }
+        public DateTime? DateCreated { get; set; }
+    }
+
+    private List<AccountingRecord> accounts = new();
+    private AccountingRecord? selectedAccount = null;
+    private bool isLoading = true;
+    private string searchTerm = string.Empty;
+
+    // Pagination
+    private int currentPage = 1;
+    private int itemsPerPage = 8;
+
+    // Create Account Modal
+    private bool showCreateModal = false;
+    private string newAccountTitle = string.Empty;
+    private string newAccountDescription = string.Empty;
+    private string targetRCACode = string.Empty;
+    private string targetUACSCode = string.Empty;
+
+    // Excel Export Properties
+    private bool showDropdown = false;
+    private InputFile? fileInput;
+    private bool showDownloadSuccess = false;
+    private string downloadMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAccounts();
+    }
+
+    private async Task LoadAccounts()
+    {
+        isLoading = true;
+        try
+        {
+            // Static sample data for UI testing
+            accounts = new List<AccountingRecord>
+            {
+                new AccountingRecord { Id = 1,  Title = "Textbooks and Instructional Materials for Distribution",                                                 AccountCode = "1040207000", RcaCode = "", UacsCode = "", UnitType = "Main", DateCreated = new DateTime(2026, 03, 17) },
+                new AccountingRecord { Id = 2,  Title = "Textbooks and Instructional Materials for Distribution",                                                 AccountCode = "5020311000", RcaCode = "", UacsCode = "", UnitType = "Main", DateCreated = new DateTime(2026, 03, 17) },
+                new AccountingRecord { Id = 3,  Title = "Technical and Scientific Equipment",                                                                     AccountCode = "1060514000", RcaCode = "", UacsCode = "", UnitType = "Main", DateCreated = new DateTime(2026, 03, 17) },
+                new AccountingRecord { Id = 4,  Title = "Semi-Expendable Technical and Scientific Equipment",                                                     AccountCode = "1040513000", RcaCode = "", UacsCode = "", UnitType = "Sub",  DateCreated = new DateTime(2026, 03, 17) },
+                new AccountingRecord { Id = 5,  Title = "Semi-Expendable Sports Equipment",                                                                       AccountCode = "1040512000", RcaCode = "", UacsCode = "", UnitType = "Sub",  DateCreated = new DateTime(2026, 03, 17) },
+                new AccountingRecord { Id = 6,  Title = "Semi-Expendable Printing Equipment",                                                                     AccountCode = "1040511000", RcaCode = "", UacsCode = "", UnitType = "Sub",  DateCreated = new DateTime(2026, 03, 17) },
+                new AccountingRecord { Id = 7,  Title = "Semi-Expendable Other Equipment",                                                                        AccountCode = "1040599000", RcaCode = "", UacsCode = "", UnitType = "Sub",  DateCreated = new DateTime(2026, 03, 17) },
+                new AccountingRecord { Id = 8,  Title = "Semi-Expendable Office Equipment",                                                                       AccountCode = "1040502000", RcaCode = "", UacsCode = "", UnitType = "Sub",  DateCreated = new DateTime(2026, 03, 17) },
+                new AccountingRecord { Id = 9,  Title = "Semi-Expendable Medical Equipment",                                                                      AccountCode = "1040510000", RcaCode = "", UacsCode = "", UnitType = "Sub",  DateCreated = new DateTime(2026, 03, 17) },
+                new AccountingRecord { Id = 10, Title = "Semi-Expendable Machinery and Equipment Expenses - Information and Communications Technology Equipment", AccountCode = "5020321003", RcaCode = "", UacsCode = "", UnitType = "Sub",  DateCreated = new DateTime(2026, 03, 17) },
+            };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading accounts: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private List<AccountingRecord> FilteredAccounts =>
+        accounts.Where(a =>
+            string.IsNullOrWhiteSpace(searchTerm) ||
+            (a.Title?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (a.AccountCode?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (a.RcaCode?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (a.Description?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false)
+        ).OrderBy(a => a.Title).ToList();
+
+    private List<AccountingRecord> PaginatedAccounts =>
+        FilteredAccounts
+            .Skip((currentPage - 1) * itemsPerPage)
+            .Take(itemsPerPage)
+            .ToList();
+
+    private void OpenCreateModal()
+    {
+        showCreateModal = true;
+        ResetForm();
+    }
+
+    private void CloseCreateModal()
+    {
+        showCreateModal = false;
+    }
+
+    private void ResetForm()
+    {
+        newAccountTitle = string.Empty;
+        newAccountDescription = string.Empty;
+        targetRCACode = string.Empty;
+        targetUACSCode = string.Empty;
+    }
+
+    private bool IsValidAccount()
+    {
+        return !string.IsNullOrWhiteSpace(newAccountTitle) &&
+               !string.IsNullOrWhiteSpace(targetRCACode) &&
+               !string.IsNullOrWhiteSpace(targetUACSCode);
+    }
+
+    private async Task SaveAccount()
+    {
+        if (!IsValidAccount())
+            return;
+
+        try
+        {
+            var newAccount = new AccountingRecord
+            {
+                Id = accounts.Count + 1,
+                Title = newAccountTitle,
+                Description = newAccountDescription,
+                AccountCode = $"ACC{accounts.Count + 1:D4}",
+                RcaCode = targetRCACode,
+                UacsCode = targetUACSCode,
+                UnitType = "Main",
+                DateCreated = DateTime.Now
+            };
+
+            accounts.Add(newAccount);
+            CloseCreateModal();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating account: {ex.Message}");
+        }
+    }
+
+    private async Task ViewDetails(int id)
+    {
+        selectedAccount = accounts.FirstOrDefault(a => a.Id == id);
+        await Task.CompletedTask;
+    }
+
+    private void CloseModal()
+    {
+        selectedAccount = null;
+    }
+
+    private void HandleSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+            searchTerm = "";
+    }
+
+    private void HandlePageChanged(int page)
+        => currentPage = page;
+
+    // ================= EXCEL EXPORT METHODS =================
+    private async Task TriggerFileUpload()
+    {
+        if (fileInput?.Element != null)
+        {
+            await JS.InvokeVoidAsync("triggerClick", fileInput.Element);
+        }
+    }
+
+    private async Task DownloadTemplate(string moduleName)
+    {
+        try
+        {
+            var endpoint = $"api/excel/template/{moduleName.ToLower()}";
+
+            var response = await Http.GetAsync(endpoint);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                ShowMessage($"Download failed ({response.StatusCode}): {errorContent}");
+                return;
+            }
+
+            var file = await response.Content.ReadAsByteArrayAsync();
+
+            var fileName = $"{moduleName}Template.xlsx";
+
+            // Use JS interop to trigger browser download
+            await JS.InvokeVoidAsync("downloadFile", file, fileName);
+
+            ShowMessage($"{moduleName} template downloaded successfully.");
+        }
+        catch (Exception ex)
+        {
+            ShowMessage($"Failed to download {moduleName} template: {ex.Message}");
+        }
+    }
+
+    private async Task UploadFile(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var file = e.File;
+            var stream = file.OpenReadStream();
+            var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+            var fileBytes = memoryStream.ToArray();
+
+            using (var content = new MultipartFormDataContent())
+            {
+                var fileContent = new ByteArrayContent(fileBytes);
+                fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                content.Add(fileContent, "file", file.Name);
+
+                var response = await Http.PostAsync($"api/excel/upload/account", content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    ShowMessage("File uploaded successfully.");
+                    await LoadAccounts();
+                }
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    ShowMessage($"Upload failed: {errorContent}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowMessage($"Error uploading file: {ex.Message}");
+        }
+    }
+
+    private async void ShowMessage(string msg)
+    {
+        downloadMessage = msg;
+        showDownloadSuccess = true;
+        StateHasChanged();
+
+        await Task.Delay(4000);
+
+        showDownloadSuccess = false;
+        StateHasChanged();
+    }
+}

@@ -1,0 +1,89 @@
+﻿@if (TotalPages > 0)
+{
+    <div class="px-4 py-2 bg-gray-50 flex justify-between items-center text-xs rounded-b-md border-t border-gray-200">
+
+        <span>@ItemsLabel: <strong>@TotalItems</strong></span>
+
+        <div class="flex gap-2">
+
+            <!-- Previous -->
+            <button class="px-2 py-1 border rounded disabled:opacity-50"
+                    @onclick="() => ChangePage(CurrentPage - 1)" disabled="@(CurrentPage == 1)">
+                Previous
+            </button>
+
+            <!-- Page Numbers -->
+            @foreach (var pageNumber  in VisiblePages)
+            {
+                if (pageNumber == -1)
+                {
+                    <span class="px-2 text-gray-400">...</span>
+                }
+                else
+                {
+                    <button class="px-3 py-1 rounded-md transition
+                        @(pageNumber == CurrentPage
+                                       ? "bg-[#052767] text-white shadow-sm"
+                                       : "hover:bg-gray-100")"
+                            @onclick="() => ChangePage(pageNumber)">
+                        @pageNumber
+                    </button>
+                }
+            }
+
+            <!-- Next -->
+            <button class="px-2 py-1 border rounded disabled:opacity-50"
+                    @onclick="() => ChangePage(CurrentPage + 1)" disabled="@(CurrentPage == TotalPages)">
+                Next
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    #nullable enable
+    [Parameter] public string ItemsLabel { get; set; } = "";
+    [Parameter] public int TotalItems { get; set; }
+    [Parameter] public int ItemsPerPage { get; set; } = 8;
+    [Parameter] public int CurrentPage { get; set; } = 1;
+
+    [Parameter] public EventCallback<int> OnPageChanged { get; set; }
+
+    private int TotalPages => (int)Math.Ceiling(TotalItems / (double)ItemsPerPage);
+
+    private List<int> VisiblePages
+    {
+        get
+        {
+            var pages = new List<int>();
+
+            if (TotalPages <= 5)
+            {
+                pages.AddRange(Enumerable.Range(1, TotalPages));
+            }
+            else
+            {
+                int start = Math.Max(1, CurrentPage - 2);
+                int end = Math.Min(TotalPages, CurrentPage + 2);
+
+                if (start > 1) pages.Add(1);
+                if (start > 2) pages.Add(-1); // Ellipsis
+
+                for (int i = start; i <= end; i++)
+                    pages.Add(i);
+
+                if (end < TotalPages - 1) pages.Add(-1); // Ellipsis
+                if (end < TotalPages) pages.Add(TotalPages);
+            }
+
+            return pages;
+        }
+    }
+
+    private async Task ChangePage(int page)
+    {
+        if (page < 1 || page > TotalPages) return;
+        CurrentPage = page;
+        await OnPageChanged.InvokeAsync(page);
+    }
+}
